@@ -1,7 +1,8 @@
 import os
 import sys
-import uuid
+import shutil
 import tempfile
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,7 @@ def _aggregate_results(
     """Aggregate 16 EnergyPlus timestep readings into a SimulationResult."""
     # Average zone temps across all timesteps
     zone_temps = {
-        z: round(sum(ts["zone_temps"][z] for ts in timesteps) / len(timesteps), 1)
+        z: round(sum(ts["zone_temps"].get(z, 0.0) for ts in timesteps) / len(timesteps), 1)
         for z in ZONE_NAMES
     }
 
@@ -61,8 +62,10 @@ def _aggregate_results(
 
     # PV contribution %
     pv_contribution = 0
-    if gross_electrical_kw + pv_kw > 0:
-        pv_contribution = round(pv_kw / (gross_electrical_kw + pv_kw) * 100)
+    if gross_electrical_kw > 0:
+        pv_contribution = min(100, round(pv_kw / gross_electrical_kw * 100))
+    elif pv_kw > 0:
+        pv_contribution = 100
 
     # Energy forecast: subsample to 7 dashboard labels
     energy_forecast = []
@@ -120,6 +123,8 @@ class SimulationEngine:
         handles_initialized = False
         var_handles: dict[str, int] = {}
         cool_handles: dict[str, int] = {}
+        actuator_handles: dict[str, int] = {}
+        actuators_initialized = False
 
         # Request output variables before run
         for zone in ZONE_NAMES:
@@ -143,31 +148,35 @@ class SimulationEngine:
                 cool_handles[zone] = c
             handles_initialized = True
 
+        def _init_actuator_handles(state) -> None:
+            nonlocal actuators_initialized
+            if actuators_initialized:
+                return
+            if not api.exchange.api_data_fully_ready(state):
+                return
+            actuator_handles["dry_bulb"] = api.exchange.get_actuator_handle(
+                state, "Weather Data", "Outdoor Dry Bulb", "Environment"
+            )
+            actuator_handles["occ_mult"] = api.exchange.get_actuator_handle(
+                state, "Schedule:Compact", "Schedule Value", "OCC_MULTIPLIER"
+            )
+            actuator_handles["cooling_sp"] = api.exchange.get_actuator_handle(
+                state, "Schedule:Compact", "Schedule Value", "Cooling_SP_Sched"
+            )
+            actuators_initialized = True
+
         def _inject_inputs(state) -> None:
             if not api.exchange.api_data_fully_ready(state):
                 return
             _init_handles(state)
+            _init_actuator_handles(state)
 
-            # Override outdoor dry-bulb temperature
-            h = api.exchange.get_actuator_handle(
-                state, "Weather Data", "Outdoor Dry Bulb", "Environment"
-            )
-            if h != -1:
-                api.exchange.set_actuator_value(state, h, request.ext_temp)
-
-            # Override occupancy multiplier schedule
-            h = api.exchange.get_actuator_handle(
-                state, "Schedule:Compact", "Schedule Value", "OCC_MULTIPLIER"
-            )
-            if h != -1:
-                api.exchange.set_actuator_value(state, h, request.occupancy / 100.0)
-
-            # Override cooling setpoint schedule
-            h = api.exchange.get_actuator_handle(
-                state, "Schedule:Compact", "Schedule Value", "Cooling_SP_Sched"
-            )
-            if h != -1:
-                api.exchange.set_actuator_value(state, h, setpoints.zone_cooling_sp_c)
+            if actuator_handles.get("dry_bulb", -1) != -1:
+                api.exchange.set_actuator_value(state, actuator_handles["dry_bulb"], request.ext_temp)
+            if actuator_handles.get("occ_mult", -1) != -1:
+                api.exchange.set_actuator_value(state, actuator_handles["occ_mult"], request.occupancy / 100.0)
+            if actuator_handles.get("cooling_sp", -1) != -1:
+                api.exchange.set_actuator_value(state, actuator_handles["cooling_sp"], setpoints.zone_cooling_sp_c)
 
         def _collect_data(state) -> None:
             if api.exchange.warmup_flag(state):
@@ -206,12 +215,22 @@ class SimulationEngine:
         )
 
         output_dir = Path(tempfile.mkdtemp(prefix="ep_run_"))
-        api.runtime.run_energyplus(state, [
-            "-d", str(output_dir),
-            "-w", str(self._weather_path),
-            str(self._idf_path),
-        ])
-        api.state_manager.delete_state(state)
+        try:
+            rc = api.runtime.run_energyplus(state, [
+                "-d", str(output_dir),
+                "-w", str(self._weather_path),
+                str(self._idf_path),
+            ])
+            if rc != 0:
+                raise RuntimeError(f"EnergyPlus exited with code {rc} — check {output_dir}/eplusout.err")
+        finally:
+            api.state_manager.delete_state(state)
+            shutil.rmtree(output_dir, ignore_errors=True)
+
+        if not collected:
+            raise RuntimeError(
+                "EnergyPlus produced no timestep data — check IDF/EPW paths and EnergyPlus logs"
+            )
 
         # Ensure we have exactly 16 timesteps; pad with last value if simulation
         # ended early (e.g. only day 1 had fewer steps)
@@ -221,7 +240,6 @@ class SimulationEngine:
         return collected
 
     def run(self, request: OptimizeRequest, setpoints: Setpoints) -> SimulationResult:
-        import time
         t0 = time.perf_counter()
         timesteps = self._run_simulation(request=request, setpoints=setpoints)
         duration = time.perf_counter() - t0
