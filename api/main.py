@@ -1,4 +1,5 @@
 import asyncio
+from contextlib import asynccontextmanager
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
@@ -9,7 +10,16 @@ from api.models import OptimizeRequest, OptimizeResponse, HealthResponse, Scenar
 from simulation.mpc import compute_setpoints
 from simulation.engine import SimulationEngine, EP_DIR
 
-app = FastAPI(title="BuilMirai MPC API", version="1.0.0")
+_executor = ThreadPoolExecutor(max_workers=1)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    yield
+    _executor.shutdown(wait=True)
+
+
+app = FastAPI(title="BuilMirai MPC API", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -24,7 +34,6 @@ _EPW_PATH = _SIM_DIR / "weather.epw"
 
 engine = SimulationEngine(idf_path=_IDF_PATH, weather_path=_EPW_PATH, ep_dir=EP_DIR)
 _engine_lock = asyncio.Lock()
-_executor = ThreadPoolExecutor(max_workers=1)
 
 SCENARIOS: dict[str, dict] = {
     "normal":   {"occupancy": 70,  "ext_temp": 24.0, "pv_kw": 14.0, "tariff": 11.0},
@@ -59,11 +68,15 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
         pv_kw=request.pv_kw,
         tariff=request.tariff,
     )
-    loop = asyncio.get_event_loop()
-    async with _engine_lock:
-        result = await loop.run_in_executor(
-            _executor, engine.run, request, setpoints
-        )
+    loop = asyncio.get_running_loop()
+    try:
+        async with _engine_lock:
+            result = await loop.run_in_executor(
+                _executor,
+                lambda: engine.run(request=request, setpoints=setpoints)
+            )
+    except RuntimeError as exc:
+        raise HTTPException(status_code=500, detail=f"Simulation failed: {exc}") from exc
     return OptimizeResponse(
         power_kw=result.power_kw,
         savings_pct=result.savings_pct,

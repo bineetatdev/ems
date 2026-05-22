@@ -1,5 +1,5 @@
 import pytest
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from simulation.engine import SimulationResult
 from simulation.mpc import Setpoints
@@ -111,3 +111,13 @@ def test_optimize_calls_compute_setpoints_then_engine(client):
         occupancy=70, ext_temp=24.0, pv_kw=14.0, tariff=11.0
     )
     mock_engine.run.assert_called_once()
+
+
+def test_optimize_handles_engine_failure(client):
+    with patch("api.main.engine") as mock_engine:
+        mock_engine.run.side_effect = RuntimeError("EnergyPlus crashed")
+        resp = client.post("/optimize", json={
+            "occupancy": 70, "ext_temp": 24.0, "pv_kw": 14.0, "tariff": 11.0
+        })
+    assert resp.status_code == 500
+    assert "Simulation failed" in resp.json()["detail"]
