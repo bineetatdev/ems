@@ -1,280 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BuilMirai · AI-MPC Building Energy Management</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-<style>
-  * { box-sizing: border-box; }
-  body { margin: 0; font-family: var(--font-sans); }
+    :root {
+      --bg-base:    #0B0F1A;
+      --bg-card:    #111827;
+      --bg-card2:   #1A2236;
+      --bg-input:   #1E293B;
+      --border:     rgba(255,255,255,0.07);
+      --border-hi:  rgba(99,179,255,0.25);
+      --text-1:     #F1F5F9;
+      --text-2:     #94A3B8;
+      --text-3:     #475569;
+      --blue:       #3B82F6;
+      --blue-lo:    rgba(59,130,246,0.12);
+      --blue-glow:  rgba(59,130,246,0.25);
+      --green:      #10B981;
+      --green-lo:   rgba(16,185,129,0.12);
+      --amber:      #F59E0B;
+      --amber-lo:   rgba(245,158,11,0.12);
+      --red:        #EF4444;
+      --red-lo:     rgba(239,68,68,0.12);
+      --cyan:       #22D3EE;
+      --radius-sm:  6px;
+      --radius-md:  10px;
+      --radius-lg:  14px;
+    }
 
-  .dash { padding: 1.5rem 0 1rem; }
+    body {
+      background: var(--bg-base);
+      color: var(--text-1);
+      font-family: 'Inter', system-ui, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+    }
 
-  .header { margin-bottom: 1.25rem; }
-  .header h2 { font-size: 15px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 2px; }
-  .header p { font-size: 12px; color: var(--color-text-secondary); margin: 0; }
+    /* ── HEADER ── */
+    .page-header {
+      background: linear-gradient(135deg, #0D1B35 0%, #0B1629 50%, #0B1221 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+      position: relative;
+      overflow: hidden;
+    }
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(ellipse 60% 100% at 15% 50%, rgba(59,130,246,0.08) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, #3B82F6 0%, #1D4ED8 100%);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px; flex-shrink: 0;
+      box-shadow: 0 0 16px rgba(59,130,246,0.4);
+    }
+    .brand-name { font-size: 15px; font-weight: 600; color: var(--text-1); }
+    .brand-name span { color: var(--blue); }
+    .brand-sub { font-size: 11px; color: var(--text-3); }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .live-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s ease-in-out infinite;
+    }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+    .live-label { font-size: 11px; font-weight: 500; color: var(--green); }
+    .clock-chip {
+      font-family: 'JetBrains Mono', monospace; font-size: 12px;
+      color: var(--text-2); background: var(--bg-input);
+      border: 1px solid var(--border); border-radius: var(--radius-sm);
+      padding: 4px 10px;
+    }
 
-  .status-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 1.25rem; flex-wrap: wrap; }
-  .badge { font-size: 11px; padding: 3px 10px; border-radius: var(--border-radius-md); border: 0.5px solid; font-weight: 500; }
-  .badge-ok { background: var(--color-background-success); color: var(--color-text-success); border-color: var(--color-border-success); }
-  .badge-warn { background: var(--color-background-warning); color: var(--color-text-warning); border-color: var(--color-border-warning); }
-  .badge-info { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
-  .sep { color: var(--color-text-secondary); font-size: 11px; }
+    /* ── LAYOUT ── */
+    .page-body { max-width: 1280px; margin: 0 auto; padding: 24px 24px 40px; }
 
-  .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 1.25rem; }
-  .metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 12px; }
-  .metric-label { font-size: 11px; color: var(--color-text-secondary); margin-bottom: 4px; }
-  .metric-value { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
-  .metric-unit { font-size: 12px; color: var(--color-text-secondary); font-weight: 400; }
-  .metric-delta { font-size: 11px; margin-top: 2px; }
-  .delta-good { color: var(--color-text-success); }
-  .delta-bad { color: var(--color-text-danger); }
+    /* ── STATUS BAR ── */
+    .status-bar { display: flex; align-items: center; gap: 8px; margin-bottom: 20px; flex-wrap: wrap; }
+    .badge {
+      font-size: 11px; font-weight: 500;
+      padding: 3px 10px; border-radius: 100px;
+      border: 1px solid; display: inline-flex; align-items: center; gap: 5px;
+    }
+    .badge::before { content: ''; width: 5px; height: 5px; border-radius: 50%; background: currentColor; }
+    .badge-ok    { background: var(--green-lo);  color: var(--green);  border-color: rgba(16,185,129,0.3); }
+    .badge-warn  { background: var(--amber-lo);  color: var(--amber);  border-color: rgba(245,158,11,0.3); }
+    .badge-info  { background: var(--blue-lo);   color: var(--blue);   border-color: rgba(59,130,246,0.3); }
+    .badge-sep   { color: var(--text-3); font-size: 11px; }
+    .badge-text  { font-size: 11px; color: var(--text-2); }
 
-  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
-  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 14px; }
-  .card-title { font-size: 12px; font-weight: 500; color: var(--color-text-secondary); margin-bottom: 12px; text-transform: none; letter-spacing: 0; }
+    /* ── KPI METRICS ── */
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px; }
+    .metric {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 16px 18px;
+      position: relative; overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .metric:hover { border-color: var(--border-hi); }
+    .metric::before {
+      content: ''; position: absolute;
+      top: 0; left: 0; width: 3px; height: 100%;
+      border-radius: 3px 0 0 3px;
+    }
+    .metric.m-power::before   { background: linear-gradient(180deg, #3B82F6, #1D4ED8); }
+    .metric.m-temp::before    { background: linear-gradient(180deg, #10B981, #059669); }
+    .metric.m-saving::before  { background: linear-gradient(180deg, #8B5CF6, #6D28D9); }
+    .metric.m-pv::before      { background: linear-gradient(180deg, #F59E0B, #D97706); }
+    .metric-icon { font-size: 18px; margin-bottom: 6px; }
+    .metric-label { font-size: 11px; color: var(--text-3); font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .metric-value { font-size: 26px; font-weight: 700; color: var(--text-1); line-height: 1; }
+    .metric-unit  { font-size: 13px; font-weight: 400; color: var(--text-2); }
+    .metric-delta { font-size: 11px; margin-top: 5px; }
+    .delta-good   { color: var(--green); }
+    .delta-bad    { color: var(--red); }
+    .delta-neutral{ color: var(--text-2); }
 
-  .zone-grid { display: flex; flex-direction: column; gap: 6px; }
-  .zone-row { display: flex; align-items: center; gap: 8px; }
-  .zone-name { font-size: 12px; color: var(--color-text-secondary); width: 64px; flex-shrink: 0; }
-  .zone-bar-wrap { flex: 1; height: 8px; background: var(--color-background-secondary); border-radius: 4px; overflow: hidden; }
-  .zone-bar { height: 100%; border-radius: 4px; transition: width 1.2s ease; }
-  .bar-cool { background: #3B8BD4; }
-  .bar-ok   { background: #1D9E75; }
-  .bar-warm { background: #EF9F27; }
-  .bar-hot  { background: #D85A30; }
-  .zone-temp { font-size: 12px; font-weight: 500; color: var(--color-text-primary); width: 38px; text-align: right; }
+    /* ── SCENARIO PILLS ── */
+    .scenario-section { margin-bottom: 16px; }
+    .scenario-label { font-size: 10px; font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+    .scenario-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .scenario-btn {
+      font-size: 12px; font-weight: 500;
+      padding: 6px 14px; border-radius: 100px;
+      border: 1px solid var(--border);
+      background: var(--bg-card); color: var(--text-2);
+      cursor: pointer; transition: all 0.15s;
+    }
+    .scenario-btn:hover { background: var(--bg-card2); border-color: var(--border-hi); color: var(--text-1); }
+    .scenario-btn.active {
+      background: var(--blue-lo); color: var(--blue);
+      border-color: rgba(59,130,246,0.4);
+    }
 
-  .forecast-row { display: flex; align-items: flex-end; gap: 4px; height: 80px; }
-  .fc-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; gap: 3px; }
-  .fc-bar { width: 100%; border-radius: 3px 3px 0 0; transition: height 0.8s ease; }
-  .fc-label { font-size: 10px; color: var(--color-text-secondary); }
-  .fc-val { font-size: 10px; font-weight: 500; color: var(--color-text-primary); }
+    /* ── GRID LAYOUTS ── */
+    .grid-3-2 { display: grid; grid-template-columns: 2fr 1.4fr 1.6fr; gap: 14px; margin-bottom: 14px; }
+    .grid-2   { display: grid; grid-template-columns: 1fr 1fr;         gap: 14px; margin-bottom: 14px; }
+    .grid-3   { display: grid; grid-template-columns: 1fr 1fr 1fr;     gap: 14px; margin-bottom: 14px; }
 
-  .controls { display: flex; flex-direction: column; gap: 10px; }
-  .ctrl-row { display: flex; align-items: center; gap: 8px; }
-  .ctrl-label { font-size: 12px; color: var(--color-text-secondary); width: 88px; flex-shrink: 0; }
-  .ctrl-row input[type=range] { flex: 1; }
-  .ctrl-val { font-size: 12px; font-weight: 500; color: var(--color-text-primary); width: 42px; text-align: right; }
+    /* ── CARD ── */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+    }
+    .card-header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 14px; }
+    .card-title  { font-size: 12px; font-weight: 600; color: var(--text-2); text-transform: uppercase; letter-spacing: 0.06em; }
+    .card-desc   { font-size: 11px; color: var(--text-3); margin-top: 2px; line-height: 1.4; }
+    .card-chip   {
+      font-size: 10px; font-weight: 500; padding: 2px 8px;
+      border-radius: 100px; border: 1px solid var(--border-hi);
+      color: var(--blue); background: var(--blue-lo); white-space: nowrap;
+    }
 
-  .scenario-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-  .scenario-btn { font-size: 11px; padding: 5px 10px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-secondary); cursor: pointer; transition: all 0.15s; }
-  .scenario-btn:hover { background: var(--color-background-secondary); }
-  .scenario-btn.active { background: var(--color-background-info); color: var(--color-text-info); border-color: var(--color-border-info); }
+    /* ── ZONE TEMPERATURES ── */
+    .zone-grid { display: flex; flex-direction: column; gap: 9px; }
+    .zone-row  { display: flex; align-items: center; gap: 10px; }
+    .zone-icon { font-size: 13px; width: 20px; text-align: center; flex-shrink: 0; }
+    .zone-name { font-size: 12px; color: var(--text-2); width: 76px; flex-shrink: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .zone-bar-wrap { flex: 1; height: 6px; background: rgba(255,255,255,0.06); border-radius: 3px; overflow: hidden; }
+    .zone-bar  { height: 100%; border-radius: 3px; transition: width 1s ease; }
+    .bar-cool  { background: linear-gradient(90deg, #3B82F6, #60A5FA); }
+    .bar-ok    { background: linear-gradient(90deg, #059669, #10B981); }
+    .bar-warm  { background: linear-gradient(90deg, #D97706, #F59E0B); }
+    .bar-hot   { background: linear-gradient(90deg, #DC2626, #EF4444); }
+    .zone-temp { font-size: 12px; font-weight: 600; color: var(--text-1); width: 42px; text-align: right; font-family: 'JetBrains Mono', monospace; }
 
-  .setpoint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
-  .sp-item { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 8px 10px; }
-  .sp-label { font-size: 10px; color: var(--color-text-secondary); margin-bottom: 2px; }
-  .sp-value { font-size: 13px; font-weight: 500; color: var(--color-text-primary); }
+    /* ── COMFORT BAND ── */
+    .comfort-section { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+    .comfort-label-row { display: flex; justify-content: space-between; margin-bottom: 5px; }
+    .comfort-label { font-size: 10px; color: var(--text-3); }
+    .comfort-track { height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; }
+    .comfort-fill  { height: 100%; border-radius: 4px; transition: width 1s ease, background 0.5s; }
+    .comfort-ok    { background: linear-gradient(90deg, #059669, #10B981); }
+    .comfort-warn  { background: linear-gradient(90deg, #D97706, #F59E0B); }
+    .comfort-caption { font-size: 10px; color: var(--text-3); margin-top: 5px; text-align: right; }
 
-  .layer-stack { display: flex; flex-direction: column; gap: 4px; }
-  .layer { display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: var(--border-radius-md); border: 0.5px solid; }
-  .layer-mpc  { background: #E6F1FB; border-color: #B5D4F4; color: #0C447C; }
-  .layer-bms  { background: #E1F5EE; border-color: #9FE1CB; color: #085041; }
-  .layer-pid  { background: #FAEEDA; border-color: #FAC775; color: #633806; }
-  @media (prefers-color-scheme: dark) {
-    .layer-mpc  { background: #0C447C; border-color: #185FA5; color: #B5D4F4; }
-    .layer-bms  { background: #085041; border-color: #0F6E56; color: #9FE1CB; }
-    .layer-pid  { background: #633806; border-color: #854F0B; color: #FAC775; }
-  }
-  .layer-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; opacity: 0.7; flex-shrink: 0; }
-  .layer-name { font-size: 12px; font-weight: 500; flex: 1; }
-  .layer-freq { font-size: 10px; opacity: 0.7; }
-  .layer-status { font-size: 10px; opacity: 0.85; font-weight: 500; }
+    /* ── ENERGY FORECAST ── */
+    .forecast-wrap { display: flex; flex-direction: column; height: 100%; }
+    .forecast-row  { display: flex; align-items: flex-end; gap: 5px; flex: 1; min-height: 90px; padding-bottom: 2px; }
+    .fc-col { display: flex; flex-direction: column; align-items: center; flex: 1; height: 100%; justify-content: flex-end; gap: 4px; }
+    .fc-bar { width: 100%; border-radius: 4px 4px 0 0; transition: height 0.8s ease; min-height: 4px; }
+    .fc-label { font-size: 9px; color: var(--text-3); letter-spacing: 0.02em; }
+    .fc-val   { font-size: 10px; font-weight: 600; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
+    .fc-axis  { display: flex; justify-content: space-between; margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); }
+    .fc-axis-label { font-size: 10px; color: var(--text-3); }
 
-  .log { font-size: 11px; font-family: var(--font-mono); color: var(--color-text-secondary); line-height: 1.7; max-height: 90px; overflow: hidden; }
-  .log-line { display: flex; gap: 8px; }
-  .log-time { color: var(--color-text-tertiary); }
-  .log-ok   { color: var(--color-text-success); }
-  .log-warn { color: var(--color-text-warning); }
-  .log-info { color: var(--color-text-info); }
+    /* ── CONTROLS ── */
+    .controls { display: flex; flex-direction: column; gap: 14px; }
+    .ctrl-row  { display: flex; flex-direction: column; gap: 5px; }
+    .ctrl-header { display: flex; align-items: center; justify-content: space-between; }
+    .ctrl-label{ font-size: 12px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 5px; }
+    .ctrl-val  { font-size: 12px; font-weight: 600; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
+    input[type=range] {
+      -webkit-appearance: none; width: 100%; height: 4px;
+      background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 14px; height: 14px;
+      border-radius: 50%; background: var(--blue);
+      box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    input[type=range]::-webkit-slider-thumb:hover { box-shadow: 0 0 0 5px rgba(59,130,246,0.3); }
 
-  .comfort-bar { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
-  .comfort-track { flex: 1; height: 10px; background: var(--color-background-secondary); border-radius: 5px; position: relative; overflow: visible; }
-  .comfort-fill { height: 100%; border-radius: 5px; transition: all 1s ease; }
-  .comfort-ok { background: #1D9E75; }
-  .comfort-warn { background: #EF9F27; }
-  .comfort-label { font-size: 11px; color: var(--color-text-secondary); width: 30px; }
+    /* ── RUN BUTTON ── */
+    .run-btn {
+      width: 100%; padding: 11px 0; margin-top: 16px;
+      border-radius: var(--radius-md); border: none;
+      background: linear-gradient(135deg, #2563EB, #1D4ED8);
+      color: #fff; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+      letter-spacing: 0.02em;
+    }
+    .run-btn:hover { background: linear-gradient(135deg, #3B82F6, #2563EB); box-shadow: 0 4px 24px rgba(37,99,235,0.5); }
+    .run-btn.running {
+      background: var(--bg-card2); color: var(--blue);
+      border: 1px solid rgba(59,130,246,0.4); box-shadow: none;
+      animation: thinking 1.5s ease-in-out infinite;
+    }
+    @keyframes thinking { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
 
-  .run-btn { width: 100%; padding: 9px; border-radius: var(--border-radius-md); border: 0.5px solid var(--color-border-secondary); background: var(--color-background-primary); color: var(--color-text-primary); font-size: 13px; font-weight: 500; cursor: pointer; margin-top: 10px; transition: all 0.15s; }
-  .run-btn:hover { background: var(--color-background-secondary); }
-  .run-btn.running { color: var(--color-text-info); border-color: var(--color-border-info); }
-</style>
+    /* ── SETPOINTS ── */
+    .setpoint-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .sp-item {
+      background: var(--bg-input); border-radius: var(--radius-sm);
+      padding: 10px 12px; border: 1px solid var(--border);
+      transition: border-color 0.15s;
+    }
+    .sp-item:hover { border-color: var(--border-hi); }
+    .sp-label { font-size: 10px; color: var(--text-3); margin-bottom: 4px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.04em; }
+    .sp-value { font-size: 15px; font-weight: 600; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
 
-<div class="dash">
-  <div class="header">
-    <h2>BuilMirai · AI-MPC Building Energy Management</h2>
-    <p>Physics-informed surrogate model · CFD-trained · Real-time optimisation</p>
+    /* ── CONTROL STACK ── */
+    .layer-stack { display: flex; flex-direction: column; gap: 6px; }
+    .layer {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 14px; border-radius: var(--radius-md);
+      border: 1px solid;
+      position: relative; overflow: hidden;
+    }
+    .layer::after {
+      content: ''; position: absolute; right: -20px; top: 50%;
+      transform: translateY(-50%);
+      width: 40px; height: 40px; border-radius: 50%;
+      background: currentColor; opacity: 0.04;
+    }
+    .layer-mpc { background: rgba(59,130,246,0.08);  border-color: rgba(59,130,246,0.25);  color: #60A5FA; }
+    .layer-bms { background: rgba(16,185,129,0.08);  border-color: rgba(16,185,129,0.25);  color: #34D399; }
+    .layer-pid { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25);  color: #FCD34D; }
+    .layer-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
+    .layer-name { font-size: 12px; font-weight: 600; flex: 1; }
+    .layer-freq { font-size: 10px; opacity: 0.6; }
+    .layer-status { font-size: 10px; font-weight: 600; opacity: 0.9; }
+    .layer-connector {
+      display: flex; align-items: center; justify-content: center;
+      height: 10px; color: var(--text-3);
+      font-size: 12px; margin: -2px 0;
+    }
+
+    /* ── SYSTEM LOG ── */
+    .log {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; color: var(--text-2);
+      line-height: 1.8; max-height: 110px; overflow: hidden;
+    }
+    .log-line { display: flex; gap: 10px; }
+    .log-time { color: var(--text-3); flex-shrink: 0; }
+    .log-ok   { color: var(--green); }
+    .log-warn { color: var(--amber); }
+    .log-info { color: var(--blue); }
+
+    /* ── EXPLAINER CALLOUTS ── */
+    .callout {
+      background: rgba(59,130,246,0.06); border: 1px solid rgba(59,130,246,0.15);
+      border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 14px;
+      display: flex; gap: 10px; align-items: flex-start;
+    }
+    .callout-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+    .callout-text { font-size: 11px; color: var(--text-2); line-height: 1.5; }
+    .callout-text strong { color: var(--text-1); }
+
+    /* ── SECTION HEADING ── */
+    .section-heading {
+      font-size: 11px; font-weight: 600; color: var(--text-3);
+      text-transform: uppercase; letter-spacing: 0.08em;
+      margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-heading::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .grid-3-2 { grid-template-columns: 1fr 1fr; }
+      .metrics   { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 600px) {
+      .grid-3-2, .grid-2, .grid-3 { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="page-header">
+  <div class="brand">
+    <div class="brand-icon">⚡</div>
+    <div>
+      <div class="brand-name">Buil<span>Mirai</span></div>
+      <div class="brand-sub">AI-MPC Building Energy Management</div>
+    </div>
   </div>
+  <div class="header-right">
+    <div style="display:flex;align-items:center;gap:6px">
+      <div class="live-dot"></div>
+      <span class="live-label">EnergyPlus live</span>
+    </div>
+    <div class="clock-chip" id="clock-display">12:00:00</div>
+  </div>
+</header>
 
+<div class="page-body">
+
+  <!-- ── STATUS BAR ── -->
   <div class="status-bar">
-    <span class="badge badge-ok" id="sys-status">MPC active</span>
-    <span class="badge badge-ok" id="comfort-status">Comfort: all zones</span>
+    <span class="badge badge-ok"  id="sys-status">MPC active</span>
+    <span class="badge badge-ok"  id="comfort-status">Comfort: all zones</span>
     <span class="badge badge-info" id="tariff-badge">Tariff: off-peak</span>
-    <span class="sep">·</span>
-    <span style="font-size:11px;color:var(--color-text-secondary)" id="clock-display">12:00</span>
-    <span class="sep">·</span>
-    <span style="font-size:11px;color:var(--color-text-secondary)" id="weather-display">24°C ext · clear</span>
+    <span class="badge-sep">·</span>
+    <span class="badge-text" id="weather-display">24°C ext · clear</span>
+    <span class="badge-sep">·</span>
+    <span class="badge-text">EnergyPlus 25.2 · 5-zone office · 4 h horizon</span>
   </div>
 
+  <!-- ── KPI METRICS ── -->
   <div class="metrics">
-    <div class="metric">
-      <div class="metric-label">Power demand</div>
+    <div class="metric m-power">
+      <div class="metric-icon">⚡</div>
+      <div class="metric-label">Net power demand</div>
       <div class="metric-value" id="m-power">38<span class="metric-unit"> kW</span></div>
       <div class="metric-delta delta-good" id="m-power-d">↓12% vs baseline</div>
     </div>
-    <div class="metric">
+    <div class="metric m-temp">
+      <div class="metric-icon">🌡️</div>
       <div class="metric-label">Avg zone temp</div>
       <div class="metric-value" id="m-temp">23.4<span class="metric-unit">°C</span></div>
       <div class="metric-delta delta-good" id="m-temp-d">within 22–26°C</div>
     </div>
-    <div class="metric">
-      <div class="metric-label">Cost savings</div>
+    <div class="metric m-saving">
+      <div class="metric-icon">💡</div>
+      <div class="metric-label">MPC cost savings</div>
       <div class="metric-value" id="m-saving">18<span class="metric-unit">%</span></div>
-      <div class="metric-delta delta-good" id="m-saving-d">vs reactive control</div>
+      <div class="metric-delta delta-neutral" id="m-saving-d">vs reactive control</div>
     </div>
-    <div class="metric">
-      <div class="metric-label">PV contribution</div>
+    <div class="metric m-pv">
+      <div class="metric-icon">☀️</div>
+      <div class="metric-label">Solar PV</div>
       <div class="metric-value" id="m-pv">14<span class="metric-unit"> kW</span></div>
-      <div class="metric-delta" id="m-pv-d" style="color:var(--color-text-secondary)">37% of load</div>
+      <div class="metric-delta delta-neutral" id="m-pv-d" style="color:var(--text-2)">37% of load</div>
     </div>
   </div>
 
-  <div class="scenario-row">
-    <button class="scenario-btn active" onclick="setScenario('normal')">Typical day</button>
-    <button class="scenario-btn" onclick="setScenario('peak')">Peak tariff</button>
-    <button class="scenario-btn" onclick="setScenario('heatwave')">Heatwave</button>
-    <button class="scenario-btn" onclick="setScenario('preheat')">Pre-cooling</button>
-    <button class="scenario-btn" onclick="setScenario('night')">Night setback</button>
+  <!-- ── SCENARIOS ── -->
+  <div class="scenario-section">
+    <div class="scenario-label">Load scenario presets</div>
+    <div class="scenario-row">
+      <button class="scenario-btn active" onclick="setScenario('normal')">☁️ Typical day</button>
+      <button class="scenario-btn" onclick="setScenario('peak')">⚡ Peak tariff</button>
+      <button class="scenario-btn" onclick="setScenario('heatwave')">🌡️ Heatwave</button>
+      <button class="scenario-btn" onclick="setScenario('preheat')">❄️ Pre-cooling</button>
+      <button class="scenario-btn" onclick="setScenario('night')">🌙 Night setback</button>
+    </div>
   </div>
 
-  <div class="grid2">
+  <!-- ── ROW 1: ZONES + FORECAST + CONTROLS ── -->
+  <div class="section-heading">Physics simulation output</div>
+  <div class="grid-3-2">
+
+    <!-- Zone temperatures -->
     <div class="card">
-      <div class="card-title">Zone temperatures</div>
-      <div class="zone-grid" id="zone-grid"></div>
-      <div class="comfort-bar" style="margin-top:10px">
-        <span class="comfort-label" style="font-size:10px;color:var(--color-text-secondary)">22°</span>
-        <div class="comfort-track">
-          <div class="comfort-fill comfort-ok" id="comfort-fill" style="width:60%;"></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Zone temperatures</div>
+          <div class="card-desc">Real EnergyPlus thermal simulation · 5-zone office model</div>
         </div>
-        <span class="comfort-label" style="font-size:10px;color:var(--color-text-secondary);text-align:right">26°</span>
+        <span class="card-chip">CFD-trained</span>
       </div>
-      <div style="font-size:10px;color:var(--color-text-secondary);margin-top:3px" id="comfort-pct">100% zones in comfort band</div>
+      <div class="zone-grid" id="zone-grid"></div>
+      <div class="comfort-section">
+        <div class="comfort-label-row">
+          <span class="comfort-label">22°C lower bound</span>
+          <span class="comfort-label">26°C upper bound</span>
+        </div>
+        <div class="comfort-track">
+          <div class="comfort-fill comfort-ok" id="comfort-fill" style="width:100%"></div>
+        </div>
+        <div class="comfort-caption" id="comfort-pct">100% zones in comfort band</div>
+      </div>
     </div>
 
+    <!-- Energy forecast -->
     <div class="card">
-      <div class="card-title">MPC horizon · energy forecast (kWh)</div>
-      <div class="forecast-row" id="fc-row"></div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Energy forecast</div>
+          <div class="card-desc">4-hour MPC horizon · 15-min timesteps</div>
+        </div>
+      </div>
+      <div class="forecast-wrap">
+        <div class="forecast-row" id="fc-row"></div>
+        <div class="fc-axis">
+          <span class="fc-axis-label">Now</span>
+          <span class="fc-axis-label">+4 h</span>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <div class="grid2">
+    <!-- Controls -->
     <div class="card">
-      <div class="card-title">Scenario controls</div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">Simulation inputs</div>
+          <div class="card-desc">Adjust conditions, then run EnergyPlus</div>
+        </div>
+      </div>
       <div class="controls">
         <div class="ctrl-row">
-          <span class="ctrl-label">Occupancy</span>
+          <div class="ctrl-header">
+            <span class="ctrl-label">👥 Occupancy</span>
+            <span class="ctrl-val" id="sv-occ">70%</span>
+          </div>
           <input type="range" min="0" max="100" value="70" id="sl-occ" step="1" oninput="onSlider()">
-          <span class="ctrl-val" id="sv-occ">70%</span>
         </div>
         <div class="ctrl-row">
-          <span class="ctrl-label">Ext. temp</span>
+          <div class="ctrl-header">
+            <span class="ctrl-label">🌡️ External temp</span>
+            <span class="ctrl-val" id="sv-ext">24°C</span>
+          </div>
           <input type="range" min="10" max="42" value="24" id="sl-ext" step="1" oninput="onSlider()">
-          <span class="ctrl-val" id="sv-ext">24°C</span>
         </div>
         <div class="ctrl-row">
-          <span class="ctrl-label">Solar PV</span>
+          <div class="ctrl-header">
+            <span class="ctrl-label">☀️ Solar PV</span>
+            <span class="ctrl-val" id="sv-pv">14 kW</span>
+          </div>
           <input type="range" min="0" max="30" value="14" id="sl-pv" step="1" oninput="onSlider()">
-          <span class="ctrl-val" id="sv-pv">14 kW</span>
         </div>
         <div class="ctrl-row">
-          <span class="ctrl-label">Tariff</span>
+          <div class="ctrl-header">
+            <span class="ctrl-label">💷 Grid tariff</span>
+            <span class="ctrl-val" id="sv-tariff">11p/kWh</span>
+          </div>
           <input type="range" min="5" max="40" value="11" id="sl-tariff" step="1" oninput="onSlider()">
-          <span class="ctrl-val" id="sv-tariff">11p/kWh</span>
         </div>
       </div>
-      <button class="run-btn" id="run-btn" onclick="runOptimise()">Run optimiser</button>
-    </div>
-
-    <div class="card">
-      <div class="card-title">MPC setpoint outputs</div>
-      <div class="setpoint-grid" id="sp-grid"></div>
+      <button class="run-btn" id="run-btn" onclick="runOptimise()">▶ Run EnergyPlus optimiser</button>
     </div>
   </div>
 
-  <div class="grid2" style="margin-top:10px">
+  <!-- ── ROW 2: SETPOINTS + CONTROL STACK + LOG ── -->
+  <div class="section-heading">MPC outputs &amp; system status</div>
+  <div class="grid-3">
+
+    <!-- MPC Setpoints -->
     <div class="card">
-      <div class="card-title">Control stack</div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">MPC setpoint outputs</div>
+          <div class="card-desc">Heuristic optimiser decisions sent to HVAC actuators</div>
+        </div>
+      </div>
+      <div class="setpoint-grid" id="sp-grid"></div>
+    </div>
+
+    <!-- Control stack -->
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">Control architecture</div>
+          <div class="card-desc">Three-layer HVAC control hierarchy</div>
+        </div>
+      </div>
       <div class="layer-stack">
         <div class="layer layer-mpc">
           <div class="layer-dot"></div>
-          <span class="layer-name">MPC optimiser</span>
-          <span class="layer-freq">5 min horizon · 15 s cycle</span>
+          <div style="flex:1">
+            <div class="layer-name">MPC optimiser</div>
+            <div class="layer-freq">EnergyPlus physics · 4 h horizon · 15 min re-solve</div>
+          </div>
           <span class="layer-status" id="mpc-status">running</span>
         </div>
+        <div class="layer-connector">↓</div>
         <div class="layer layer-bms">
           <div class="layer-dot"></div>
-          <span class="layer-name">BuilMirai BMS</span>
-          <span class="layer-freq">supervisory · 1 min</span>
+          <div style="flex:1">
+            <div class="layer-name">BuilMirai BMS</div>
+            <div class="layer-freq">supervisory setpoint dispatch · 1 min</div>
+          </div>
           <span class="layer-status">active</span>
         </div>
+        <div class="layer-connector">↓</div>
         <div class="layer layer-pid">
           <div class="layer-dot"></div>
-          <span class="layer-name">PID inner loop</span>
-          <span class="layer-freq">1 s · per AHU</span>
+          <div style="flex:1">
+            <div class="layer-name">PID inner loop</div>
+            <div class="layer-freq">per-AHU valve control · 1 s</div>
+          </div>
           <span class="layer-status">closed</span>
         </div>
       </div>
     </div>
 
+    <!-- System log -->
     <div class="card">
-      <div class="card-title">System log</div>
+      <div class="card-header">
+        <div>
+          <div class="card-title">System log</div>
+          <div class="card-desc">Live optimiser events and telemetry</div>
+        </div>
+      </div>
       <div class="log" id="sys-log"></div>
     </div>
   </div>
-</div>
+
+  <!-- ── CALLOUT: HOW IT WORKS ── -->
+  <div class="callout">
+    <div class="callout-icon">🔬</div>
+    <div class="callout-text">
+      <strong>How it works:</strong> Each "Run optimiser" click sends slider inputs to a <strong>FastAPI</strong> backend that runs a real <strong>EnergyPlus 25.2</strong> co-simulation via the <code>pyenergyplus</code> Python API.
+      A heuristic <strong>MPC layer</strong> computes HVAC setpoints (AHU supply temps, chiller setpoint, free-cooling fraction) from 5 rules before each simulation.
+      EnergyPlus simulates a <strong>5-zone, 500 m² office building</strong> over a 4-hour prediction horizon (16 × 15-min timesteps), returning real zone temperatures, electrical demand, and energy forecasts.
+    </div>
+  </div>
+
+</div><!-- /page-body -->
 
 <script>
-const zones = ['Server Hall','Open Plan','Boardroom','Reception','Lab A'];
+const zones    = ['Server Hall','Open Plan','Boardroom','Reception','Lab A'];
+const zoneIcons = ['🖥️','🏢','📋','🚪','🔬'];
 const fcLabels = ['+15m','+30m','+45m','+1h','+2h','+3h','+4h'];
 
 const scenarios = {
-  normal:  { occ:70, ext:24, pv:14, tariff:11, label:'Typical day', tariffLabel:'off-peak' },
-  peak:    { occ:90, ext:27, pv:8,  tariff:34, label:'Peak tariff', tariffLabel:'PEAK' },
-  heatwave:{ occ:75, ext:40, pv:22, tariff:18, label:'Heatwave', tariffLabel:'dynamic' },
-  preheat: { occ:20, ext:19, pv:5,  tariff:7,  label:'Pre-cooling', tariffLabel:'off-peak' },
-  night:   { occ:5,  ext:16, pv:0,  tariff:5,  label:'Night setback', tariffLabel:'night' },
+  normal:   { occ:70, ext:24, pv:14, tariff:11, label:'Typical day',    tariffLabel:'off-peak' },
+  peak:     { occ:90, ext:27, pv:8,  tariff:34, label:'Peak tariff',    tariffLabel:'PEAK'     },
+  heatwave: { occ:75, ext:40, pv:22, tariff:18, label:'Heatwave',       tariffLabel:'dynamic'  },
+  preheat:  { occ:20, ext:19, pv:5,  tariff:7,  label:'Pre-cooling',    tariffLabel:'off-peak' },
+  night:    { occ:5,  ext:16, pv:0,  tariff:5,  label:'Night setback',  tariffLabel:'night'    },
 };
 
 let state = { occ:70, ext:24, pv:14, tariff:11 };
-let activeScenario = 'normal';
-
-function lerp(a,b,t){ return a+(b-a)*t; }
 
 function computeState(s) {
   const occF = s.occ/100, pvF = s.pv/30, tariffF = (s.tariff-5)/35, extF = (s.ext-10)/32;
   const basePower = 20 + occF*30 + extF*18;
-  const pvOffset = s.pv;
+  const pvOffset  = s.pv;
   const mpcSaving = tariffF*12 + 5;
-  const power = Math.round(Math.max(8, basePower - pvOffset*0.5 - mpcSaving*0.4));
+  const power  = Math.round(Math.max(8, basePower - pvOffset*0.5 - mpcSaving*0.4));
   const saving = Math.round(Math.min(35, mpcSaving));
   const avgTemp = parseFloat((22 + occF*1.8 + extF*2.2 - pvF*0.3).toFixed(1));
-
-  const zoneTemps = zones.map((z,i) => {
+  const zoneTemps = zones.map((_,i) => {
     const offset = [0.3,-0.2,0.5,-0.4,0.2][i];
     const t = avgTemp + offset + (Math.random()-0.5)*0.3;
     return parseFloat(Math.max(20.5, Math.min(27, t)).toFixed(1));
   });
-
-  const fcBase = power;
-  const fcVals = fcLabels.map((_,i) => Math.round(Math.max(5, fcBase - i*(tariffF>0.5?2.5:1.2) + (i>3?-3:0) + (Math.random()-0.5)*3)));
-
+  const fcVals = fcLabels.map((_,i) => Math.round(Math.max(5, power - i*(tariffF>0.5?2.5:1.2) + (i>3?-3:0) + (Math.random()-0.5)*3)));
   const setpoints = {
     'AHU-1 supply': (18 + (1-occF)*3 + extF*1.5).toFixed(1)+'°C',
     'AHU-2 supply': (17.5 + (1-occF)*2.5 + extF*2).toFixed(1)+'°C',
     'Chiller setpt': (6 + extF*1.2).toFixed(1)+'°C',
-    'Free-cool %': Math.round(Math.max(0, 80-extF*60))+'%',
-    'PV divert': Math.round(pvF*100)+'%',
-    'Demand limit': Math.round(power*1.2)+' kW',
+    'Free-cool %':   Math.round(Math.max(0, 80-extF*60))+'%',
+    'PV divert':     Math.round(pvF*100)+'%',
+    'Demand limit':  Math.round(power*1.2)+' kW',
   };
-
   const comfort = zoneTemps.filter(t => t>=22 && t<=26).length;
-
   return { power, saving, avgTemp, zoneTemps, fcVals, setpoints, pvContrib: Math.round(pvOffset/(power+pvOffset)*100), pvKw: s.pv, comfort };
 }
 
@@ -289,8 +607,9 @@ function renderZones(temps) {
   const el = document.getElementById('zone-grid');
   el.innerHTML = zones.map((z,i) => {
     const t = temps[i];
-    const pct = Math.round(Math.max(0,Math.min(100,(t-18)/12*100)));
+    const pct = Math.round(Math.max(0, Math.min(100, (t-18)/12*100)));
     return `<div class="zone-row">
+      <span class="zone-icon">${zoneIcons[i]}</span>
       <span class="zone-name">${z}</span>
       <div class="zone-bar-wrap"><div class="zone-bar ${barClass(t)}" style="width:${pct}%"></div></div>
       <span class="zone-temp">${t}°C</span>
@@ -301,9 +620,17 @@ function renderZones(temps) {
 function renderForecast(vals) {
   const max = Math.max(...vals);
   const el = document.getElementById('fc-row');
-  const colors = ['#3B8BD4','#378ADD','#185FA5','#1D9E75','#1D9E75','#0F6E56','#085041'];
+  const colors = [
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#60A5FA,#3B82F6)',
+    'linear-gradient(180deg,#818CF8,#6366F1)',
+    'linear-gradient(180deg,#34D399,#10B981)',
+    'linear-gradient(180deg,#10B981,#059669)',
+    'linear-gradient(180deg,#059669,#047857)',
+    'linear-gradient(180deg,#047857,#065F46)',
+  ];
   el.innerHTML = vals.map((v,i) => {
-    const h = max > 0 ? Math.round((v/max)*62)+6 : 6;
+    const h = max > 0 ? Math.round((v/max)*68)+6 : 6;
     return `<div class="fc-col">
       <div class="fc-val">${v}</div>
       <div class="fc-bar" style="height:${h}px;background:${colors[i]}"></div>
@@ -319,65 +646,55 @@ function renderSetpoints(sps) {
   ).join('');
 }
 
-const logMessages = [];
 const logTypes = ['log-ok','log-ok','log-info','log-ok','log-warn','log-info','log-ok'];
 const logTexts = [
   (s) => `MPC horizon optimised · cost £${(s.power*s.tariff/100).toFixed(2)}/hr`,
   (s) => `Zone comfort: ${s.comfort}/5 in band`,
   (s) => `Chiller staging adjusted · ext ${s.ext}°C`,
   (s) => `PV ${s.pvKw} kW absorbed · demand offset`,
-  (s) => s.ext>35 ? 'Hotspot risk flagged: Server hall +2.1K' : 'Thermal gradient nominal',
+  (s) => s.ext>35 ? 'Hotspot risk: Server Hall +2.1K above setpoint' : 'Thermal gradient nominal',
   (s) => `Tariff signal: next change T+${12+Math.floor(Math.random()*20)}min`,
   (s) => `BMS supervisory heartbeat · PID loops closed`,
 ];
-
+const logMessages = [];
 let logIdx = 0;
+
 function addLog(s) {
-  const now = new Date();
-  const t = now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const i = logIdx % logMessages.length || 0;
+  const t = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   const li = logIdx % logTexts.length;
-  const type = logTypes[li];
-  const text = logTexts[li](s);
+  logMessages.unshift({ t, type: logTypes[li], text: logTexts[li](s) });
+  if(logMessages.length > 5) logMessages.pop();
   logIdx++;
-  logMessages.unshift({t, type, text});
-  if(logMessages.length>4) logMessages.pop();
-  const el = document.getElementById('sys-log');
-  el.innerHTML = logMessages.map(m =>
+  document.getElementById('sys-log').innerHTML = logMessages.map(m =>
     `<div class="log-line"><span class="log-time">${m.t}</span><span class="${m.type}">${m.text}</span></div>`
   ).join('');
 }
 
 function render(s) {
   const r = computeState(s);
-  document.getElementById('m-power').innerHTML = r.power+'<span class="metric-unit"> kW</span>';
-  const pct = Math.round((1-r.power/(r.power+10))*100);
-  document.getElementById('m-power-d').textContent = `↓${r.saving}% vs baseline`;
-  document.getElementById('m-power-d').className = 'metric-delta ' + (r.saving>0?'delta-good':'delta-bad');
-  document.getElementById('m-temp').innerHTML = r.avgTemp+'<span class="metric-unit">°C</span>';
+  document.getElementById('m-power').innerHTML  = r.power+'<span class="metric-unit"> kW</span>';
+  document.getElementById('m-power-d').textContent  = `↓${r.saving}% vs baseline`;
+  document.getElementById('m-power-d').className    = 'metric-delta ' + (r.saving>0?'delta-good':'delta-bad');
+  document.getElementById('m-temp').innerHTML   = r.avgTemp+'<span class="metric-unit">°C</span>';
   const inBand = r.avgTemp>=22 && r.avgTemp<=26;
-  document.getElementById('m-temp-d').textContent = inBand ? 'within 22–26°C' : 'outside comfort band';
-  document.getElementById('m-temp-d').className = 'metric-delta ' + (inBand?'delta-good':'delta-bad');
+  document.getElementById('m-temp-d').textContent  = inBand ? 'within 22–26°C' : 'outside comfort band';
+  document.getElementById('m-temp-d').className    = 'metric-delta ' + (inBand?'delta-good':'delta-bad');
   document.getElementById('m-saving').innerHTML = r.saving+'<span class="metric-unit">%</span>';
-  document.getElementById('m-pv').innerHTML = r.pvKw+'<span class="metric-unit"> kW</span>';
+  document.getElementById('m-pv').innerHTML     = r.pvKw+'<span class="metric-unit"> kW</span>';
   document.getElementById('m-pv-d').textContent = r.pvContrib+'% of load';
-
   renderZones(r.zoneTemps);
   renderForecast(r.fcVals);
   renderSetpoints(r.setpoints);
-
   const cpct = Math.round(r.comfort/5*100);
   document.getElementById('comfort-fill').style.width = cpct+'%';
-  document.getElementById('comfort-fill').className = 'comfort-fill ' + (cpct===100?'comfort-ok':'comfort-warn');
+  document.getElementById('comfort-fill').className = 'comfort-fill '+(cpct===100?'comfort-ok':'comfort-warn');
   document.getElementById('comfort-pct').textContent = cpct+'% zones in comfort band';
   document.getElementById('comfort-status').textContent = cpct===100?'Comfort: all zones':`Comfort: ${r.comfort}/5 zones`;
-  document.getElementById('comfort-status').className = 'badge ' + (cpct===100?'badge-ok':'badge-warn');
-
+  document.getElementById('comfort-status').className = 'badge '+(cpct===100?'badge-ok':'badge-warn');
   addLog({...s, ...r});
 }
 
 function renderFromApi(data) {
-  // Metrics
   document.getElementById('m-power').innerHTML = data.power_kw + '<span class="metric-unit"> kW</span>';
   document.getElementById('m-power-d').textContent = '↓' + data.savings_pct + '% vs baseline';
   document.getElementById('m-power-d').className = 'metric-delta ' + (data.savings_pct > 0 ? 'delta-good' : 'delta-bad');
@@ -391,18 +708,11 @@ function renderFromApi(data) {
   document.getElementById('m-pv').innerHTML = state.pv + '<span class="metric-unit"> kW</span>';
   document.getElementById('m-pv-d').textContent = data.pv_contribution_pct + '% of load';
 
-  // Zone temperatures (API returns object, dashboard expects array in zone order)
   const zoneOrder = ['Server Hall','Open Plan','Boardroom','Reception','Lab A'];
-  const temps = zoneOrder.map(z => data.zone_temps[z] || 23.0);
-  renderZones(temps);
-
-  // Energy forecast
+  renderZones(zoneOrder.map(z => data.zone_temps[z] || 23.0));
   renderForecast(data.energy_forecast_kwh);
-
-  // Setpoints
   renderSetpoints(data.setpoints);
 
-  // Comfort bar
   const cpct = Math.round(data.comfort_zones / 5 * 100);
   document.getElementById('comfort-fill').style.width = cpct + '%';
   document.getElementById('comfort-fill').className = 'comfort-fill ' + (cpct === 100 ? 'comfort-ok' : 'comfort-warn');
@@ -410,8 +720,7 @@ function renderFromApi(data) {
   document.getElementById('comfort-status').textContent = cpct === 100 ? 'Comfort: all zones' : 'Comfort: ' + data.comfort_zones + '/5 zones';
   document.getElementById('comfort-status').className = 'badge ' + (cpct === 100 ? 'badge-ok' : 'badge-warn');
 
-  addLog({...state, power: data.power_kw, comfort: data.comfort_zones,
-          ext: state.ext, pvKw: state.pv, tariff: state.tariff});
+  addLog({...state, power: data.power_kw, comfort: data.comfort_zones, ext: state.ext, pvKw: state.pv, tariff: state.tariff});
 }
 
 async function setScenario(key) {
@@ -421,7 +730,6 @@ async function setScenario(key) {
       const sc = await res.json();
       state = { occ: sc.occupancy, ext: sc.ext_temp, pv: sc.pv_kw, tariff: sc.tariff };
     } else {
-      // Fall back to local scenarios if API unavailable
       const sc = scenarios[key];
       state = { occ: sc.occ, ext: sc.ext, pv: sc.pv, tariff: sc.tariff };
     }
@@ -429,70 +737,63 @@ async function setScenario(key) {
     const sc = scenarios[key];
     state = { occ: sc.occ, ext: sc.ext, pv: sc.pv, tariff: sc.tariff };
   }
-
-  document.getElementById('sl-occ').value = state.occ;
-  document.getElementById('sl-ext').value = state.ext;
-  document.getElementById('sl-pv').value = state.pv;
+  document.getElementById('sl-occ').value   = state.occ;
+  document.getElementById('sl-ext').value   = state.ext;
+  document.getElementById('sl-pv').value    = state.pv;
   document.getElementById('sl-tariff').value = state.tariff;
-  document.getElementById('sv-occ').textContent = state.occ + '%';
-  document.getElementById('sv-ext').textContent = state.ext + '°C';
-  document.getElementById('sv-pv').textContent = state.pv + ' kW';
+  document.getElementById('sv-occ').textContent    = state.occ + '%';
+  document.getElementById('sv-ext').textContent    = state.ext + '°C';
+  document.getElementById('sv-pv').textContent     = state.pv + ' kW';
   document.getElementById('sv-tariff').textContent = state.tariff + 'p/kWh';
   document.querySelectorAll('.scenario-btn').forEach(b =>
     b.classList.toggle('active', b.getAttribute('onclick').includes("'" + key + "'"))
   );
-
   await runOptimise();
 }
 
 function onSlider() {
-  state.occ = +document.getElementById('sl-occ').value;
-  state.ext = +document.getElementById('sl-ext').value;
-  state.pv  = +document.getElementById('sl-pv').value;
+  state.occ    = +document.getElementById('sl-occ').value;
+  state.ext    = +document.getElementById('sl-ext').value;
+  state.pv     = +document.getElementById('sl-pv').value;
   state.tariff = +document.getElementById('sl-tariff').value;
-  document.getElementById('sv-occ').textContent = state.occ+'%';
-  document.getElementById('sv-ext').textContent = state.ext+'°C';
-  document.getElementById('sv-pv').textContent = state.pv+' kW';
+  document.getElementById('sv-occ').textContent    = state.occ+'%';
+  document.getElementById('sv-ext').textContent    = state.ext+'°C';
+  document.getElementById('sv-pv').textContent     = state.pv+' kW';
   document.getElementById('sv-tariff').textContent = state.tariff+'p/kWh';
-  document.getElementById('weather-display').textContent = state.ext+'°C ext · '+(state.ext>32?'hot':'clear');
-  document.getElementById('tariff-badge').textContent = 'Tariff: '+(state.tariff>25?'PEAK':state.tariff<8?'off-peak':'mid');
+  document.getElementById('weather-display').textContent = state.ext+'°C ext · '+(state.ext>32?'hot ☀️':'clear ⛅');
+  document.getElementById('tariff-badge').textContent = 'Tariff: '+(state.tariff>25?'PEAK ⚡':state.tariff<8?'night 🌙':'mid');
   document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
 }
 
 async function runOptimise() {
   const btn = document.getElementById('run-btn');
   btn.classList.add('running');
-  btn.textContent = 'Optimising…';
+  btn.textContent = '⏳ Running EnergyPlus…';
   document.getElementById('mpc-status').textContent = 'solving…';
-
   try {
     const res = await fetch('http://localhost:8008/optimize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        occupancy: state.occ,
-        ext_temp: state.ext,
-        pv_kw: state.pv,
-        tariff: state.tariff
-      })
+      body: JSON.stringify({ occupancy: state.occ, ext_temp: state.ext, pv_kw: state.pv, tariff: state.tariff })
     });
     if (!res.ok) throw new Error(`API error: ${res.status}`);
-    const data = await res.json();
-    renderFromApi(data);
+    renderFromApi(await res.json());
+    document.getElementById('sys-status').textContent = 'MPC active';
+    document.getElementById('sys-status').className   = 'badge badge-ok';
   } catch (err) {
     console.error('Optimisation failed:', err);
     document.getElementById('sys-status').textContent = 'MPC error';
-    document.getElementById('sys-status').className = 'badge badge-warn';
+    document.getElementById('sys-status').className   = 'badge badge-warn';
   } finally {
     btn.classList.remove('running');
-    btn.textContent = 'Run optimiser';
+    btn.textContent = '▶ Run EnergyPlus optimiser';
     document.getElementById('mpc-status').textContent = 'running';
   }
 }
 
 function tick() {
-  const d = new Date();
-  document.getElementById('clock-display').textContent = d.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  document.getElementById('clock-display').textContent =
+    new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 render(state);
@@ -500,3 +801,5 @@ setInterval(tick, 1000);
 setInterval(() => { addLog({...state, ...computeState(state)}); }, 8000);
 tick();
 </script>
+</body>
+</html>
