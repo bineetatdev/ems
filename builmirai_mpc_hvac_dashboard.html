@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="dark">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>BuilMirai · AI-MPC Building Energy Management</title>
+  <script>(function(){var t=localStorage.getItem('builmirai-theme')||'dark';document.documentElement.setAttribute('data-theme',t);})();</script>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
   <style>
@@ -33,6 +34,60 @@
       --radius-md:  10px;
       --radius-lg:  14px;
     }
+
+    /* ── LIGHT THEME ── */
+    html[data-theme="light"] {
+      --bg-base:   #F1F5F9;
+      --bg-card:   #FFFFFF;
+      --bg-card2:  #F8FAFC;
+      --bg-input:  #EFF6FF;
+      --border:    rgba(0,0,0,0.08);
+      --border-hi: rgba(59,130,246,0.4);
+      --text-1:    #0F172A;
+      --text-2:    #475569;
+      --text-3:    #9CA3AF;
+      --blue-lo:   rgba(59,130,246,0.08);
+      --green-lo:  rgba(16,185,129,0.1);
+      --amber-lo:  rgba(245,158,11,0.1);
+      --red-lo:    rgba(239,68,68,0.1);
+    }
+    html[data-theme="light"] .page-header {
+      background: linear-gradient(135deg, #EFF6FF 0%, #F0F9FF 50%, #F8FAFC 100%);
+      border-bottom-color: rgba(0,0,0,0.1);
+    }
+    html[data-theme="light"] .page-header::before {
+      background: radial-gradient(ellipse 60% 100% at 15% 50%, rgba(59,130,246,0.06) 0%, transparent 70%);
+    }
+    html[data-theme="light"] .brand-icon {
+      box-shadow: 0 0 16px rgba(59,130,246,0.25);
+    }
+    html[data-theme="light"] .zone-bar-wrap {
+      background: rgba(0,0,0,0.07);
+    }
+    html[data-theme="light"] .comfort-track {
+      background: rgba(0,0,0,0.07);
+    }
+    html[data-theme="light"] input[type=range] {
+      background: rgba(0,0,0,0.1);
+    }
+    html[data-theme="light"] .run-btn.running {
+      background: var(--bg-card2);
+    }
+    html[data-theme="light"] .layer-mpc { background: rgba(59,130,246,0.07);  }
+    html[data-theme="light"] .layer-bms { background: rgba(16,185,129,0.07);  }
+    html[data-theme="light"] .layer-pid { background: rgba(245,158,11,0.07);  }
+    html[data-theme="light"] .callout {
+      background: rgba(59,130,246,0.05);
+    }
+
+    /* ── THEME TOGGLE ── */
+    .theme-toggle {
+      background: var(--bg-input); border: 1px solid var(--border);
+      border-radius: var(--radius-sm); width: 32px; height: 32px;
+      cursor: pointer; display: flex; align-items: center; justify-content: center;
+      font-size: 15px; transition: all 0.15s; flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--border-hi); background: var(--bg-card2); }
 
     body {
       background: var(--bg-base);
@@ -212,7 +267,7 @@
     .ctrl-label{ font-size: 12px; color: var(--text-2); font-weight: 500; display: flex; align-items: center; gap: 5px; }
     .ctrl-val  { font-size: 12px; font-weight: 600; color: var(--text-1); font-family: 'JetBrains Mono', monospace; }
     input[type=range] {
-      -webkit-appearance: none; width: 100%; height: 4px;
+      -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
       background: rgba(255,255,255,0.08); border-radius: 2px; outline: none;
     }
     input[type=range]::-webkit-slider-thumb {
@@ -337,6 +392,9 @@
       <span class="live-label">EnergyPlus live</span>
     </div>
     <div class="clock-chip" id="clock-display">12:00:00</div>
+    <button class="theme-toggle" id="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme">
+      <span id="theme-icon">☀️</span>
+    </button>
   </div>
 </header>
 
@@ -791,12 +849,27 @@ async function runOptimise() {
   }
 }
 
+function toggleTheme() {
+  const html = document.documentElement;
+  const isLight = html.getAttribute('data-theme') === 'light';
+  const next = isLight ? 'dark' : 'light';
+  html.setAttribute('data-theme', next);
+  document.getElementById('theme-icon').textContent = next === 'light' ? '🌙' : '☀️';
+  localStorage.setItem('builmirai-theme', next);
+}
+
+function initThemeIcon() {
+  const theme = document.documentElement.getAttribute('data-theme') || 'dark';
+  document.getElementById('theme-icon').textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
 function tick() {
   document.getElementById('clock-display').textContent =
     new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
 }
 
 render(state);
+initThemeIcon();
 setInterval(tick, 1000);
 setInterval(() => { addLog({...state, ...computeState(state)}); }, 8000);
 tick();
