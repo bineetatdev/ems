@@ -47,13 +47,13 @@ def _aggregate_results(
     avg_zone_temp = round(sum(zone_temps.values()) / len(zone_temps), 1)
     comfort_zones = sum(1 for t in zone_temps.values() if 22.0 <= t <= 26.0)
 
-    # Total HVAC cooling energy (J) → average power (kW), then subtract PV
-    total_cooling_j = sum(
-        sum(ts["cooling_j"].values()) for ts in timesteps
-    )
+    # Total power = facility electricity (lights + equipment) + HVAC cooling / COP
     dt_seconds = 15 * 60
-    gross_cooling_kw = total_cooling_j / (len(timesteps) * dt_seconds * 1000)
-    gross_electrical_kw = gross_cooling_kw / CHILLER_COP
+    total_cooling_j = sum(sum(ts["cooling_j"].values()) for ts in timesteps)
+    total_elec_j = sum(ts.get("elec_j", 0.0) for ts in timesteps)
+    gross_hvac_kw = (total_cooling_j / CHILLER_COP) / (len(timesteps) * dt_seconds * 1000)
+    gross_facility_kw = total_elec_j / (len(timesteps) * dt_seconds * 1000)
+    gross_electrical_kw = gross_hvac_kw + gross_facility_kw
     net_power_kw = max(0.0, round(gross_electrical_kw - pv_kw, 1))
 
     # Savings estimated from MPC setpoint deltas vs. base setpoints.
@@ -70,13 +70,13 @@ def _aggregate_results(
     elif pv_kw > 0:
         pv_contribution = 100
 
-    # Energy forecast: subsample to 7 dashboard labels
+    # Energy forecast: subsample to 7 dashboard labels (HVAC cooling + facility electricity)
     energy_forecast = []
     for idx in FORECAST_INDICES:
         ts = timesteps[idx]
-        cooling_j = sum(ts["cooling_j"].values())
-        kwh = round(cooling_j / CHILLER_COP / 3_600_000, 1)  # J → kWh
-        energy_forecast.append(kwh)
+        cooling_kwh = sum(ts["cooling_j"].values()) / CHILLER_COP / 3_600_000
+        elec_kwh = ts.get("elec_j", 0.0) / 3_600_000
+        energy_forecast.append(round(cooling_kwh + elec_kwh, 2))
 
     formatted_setpoints = {
         "AHU-1 supply": f"{setpoints.ahu1_supply_c:.1f}°C",
@@ -126,18 +126,20 @@ class SimulationEngine:
         handles_initialized = False
         var_handles: dict[str, int] = {}
         cool_handles: dict[str, int] = {}
+        elec_meter_handle = -1
         actuator_handles: dict[str, int] = {}
         actuators_initialized = False
 
-        # Request output variables before run
+        # Request output variables before run.
+        # Cooling energy key is the IdealLoads unit name, not the zone name.
         for zone in ZONE_NAMES:
             api.exchange.request_variable(state, "Zone Air Temperature", zone)
             api.exchange.request_variable(
-                state, "Zone Ideal Loads Supply Air Total Cooling Energy", zone
+                state, "Zone Ideal Loads Supply Air Total Cooling Energy", f"{zone}_IdealLoads"
             )
 
         def _init_handles(state) -> None:
-            nonlocal handles_initialized
+            nonlocal handles_initialized, elec_meter_handle
             if handles_initialized:
                 return
             if not api.exchange.api_data_fully_ready(state):
@@ -146,9 +148,10 @@ class SimulationEngine:
                 h = api.exchange.get_variable_handle(state, "Zone Air Temperature", zone)
                 var_handles[zone] = h
                 c = api.exchange.get_variable_handle(
-                    state, "Zone Ideal Loads Supply Air Total Cooling Energy", zone
+                    state, "Zone Ideal Loads Supply Air Total Cooling Energy", f"{zone}_IdealLoads"
                 )
                 cool_handles[zone] = c
+            elec_meter_handle = api.exchange.get_meter_handle(state, "Electricity:Facility")
             handles_initialized = True
 
         def _init_actuator_handles(state) -> None:
@@ -199,11 +202,16 @@ class SimulationEngine:
                 for z in ZONE_NAMES
                 if z in cool_handles and cool_handles[z] != -1
             }
+            elec_j = (
+                api.exchange.get_meter_value(state, elec_meter_handle)
+                if elec_meter_handle != -1 else 0.0
+            )
 
             if zone_temps:
                 collected.append({
                     "zone_temps": zone_temps,
                     "cooling_j": cooling_j,
+                    "elec_j": elec_j,
                     "heating_j": {z: 0.0 for z in ZONE_NAMES},
                 })
 

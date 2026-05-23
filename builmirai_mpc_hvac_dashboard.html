@@ -303,7 +303,7 @@ function renderForecast(vals) {
   const el = document.getElementById('fc-row');
   const colors = ['#3B8BD4','#378ADD','#185FA5','#1D9E75','#1D9E75','#0F6E56','#085041'];
   el.innerHTML = vals.map((v,i) => {
-    const h = Math.round((v/max)*62)+6;
+    const h = max > 0 ? Math.round((v/max)*62)+6 : 6;
     return `<div class="fc-col">
       <div class="fc-val">${v}</div>
       <div class="fc-bar" style="height:${h}px;background:${colors[i]}"></div>
@@ -416,7 +416,7 @@ function renderFromApi(data) {
 
 async function setScenario(key) {
   try {
-    const res = await fetch('http://localhost:8000/scenarios/' + key);
+    const res = await fetch('http://localhost:8008/scenarios/' + key);
     if (res.ok) {
       const sc = await res.json();
       state = { occ: sc.occupancy, ext: sc.ext_temp, pv: sc.pv_kw, tariff: sc.tariff };
@@ -466,7 +466,7 @@ async function runOptimise() {
   document.getElementById('mpc-status').textContent = 'solving…';
 
   try {
-    const res = await fetch('http://localhost:8000/optimize', {
+    const res = await fetch('http://localhost:8008/optimize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
