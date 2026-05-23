@@ -56,9 +56,12 @@ def _aggregate_results(
     gross_electrical_kw = gross_cooling_kw / CHILLER_COP
     net_power_kw = max(0.0, round(gross_electrical_kw - pv_kw, 1))
 
-    # Baseline power estimate (same energy without MPC = 10% more than gross)
-    baseline_kw = gross_electrical_kw * 1.1
-    savings_pct = max(0, round((baseline_kw - gross_electrical_kw) / baseline_kw * 100))
+    # Savings estimated from MPC setpoint deltas vs. base setpoints.
+    # Higher AHU supply temp and more free cooling reduce chiller electrical draw.
+    ahu_delta = ((setpoints.ahu1_supply_c - 18.0) + (setpoints.ahu2_supply_c - 18.0)) / 2
+    free_cool_delta = setpoints.free_cool_pct - 30.0
+    sp_delta = setpoints.zone_cooling_sp_c - 25.0
+    savings_pct = max(0, round(ahu_delta * 2.5 + free_cool_delta * 0.15 + sp_delta * 1.5))
 
     # PV contribution %
     pv_contribution = 0
@@ -222,7 +225,9 @@ class SimulationEngine:
                 str(self._idf_path),
             ])
             if rc != 0:
-                raise RuntimeError(f"EnergyPlus exited with code {rc} — check {output_dir}/eplusout.err")
+                err_log = output_dir / "eplusout.err"
+                detail = err_log.read_text()[-2000:] if err_log.exists() else "(no log)"
+                raise RuntimeError(f"EnergyPlus exited {rc}:\n{detail}")
         finally:
             api.state_manager.delete_state(state)
             shutil.rmtree(output_dir, ignore_errors=True)
