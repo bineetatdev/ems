@@ -177,10 +177,25 @@ class SimulationEngine:
             _init_handles(state)
             _init_actuator_handles(state)
 
+            # len(collected) is the current step index (0-15): warmup data is never
+            # appended, so this increments only after each real production timestep.
+            step = len(collected)
+
+            # Simulate a diurnal drift over the 4-hour horizon so EnergyPlus sees
+            # varying boundary conditions and produces a meaningful forecast profile.
+            # Warm conditions: temperature rises ~0.1 °C/step (+1.5 °C at end).
+            # Cool conditions: temperature falls ~0.05 °C/step (−0.75 °C at end).
+            temp_trend = 0.1 if request.ext_temp >= 22.0 else -0.05
+            stepped_temp = request.ext_temp + step * temp_trend
+
+            # Occupancy declines ~1.5 % per step, floored at 50 % of current value,
+            # simulating people leaving toward the end of the shift.
+            occ_fraction = (request.occupancy / 100.0) * max(0.5, 1.0 - step * 0.015)
+
             if actuator_handles.get("dry_bulb", -1) != -1:
-                api.exchange.set_actuator_value(state, actuator_handles["dry_bulb"], request.ext_temp)
+                api.exchange.set_actuator_value(state, actuator_handles["dry_bulb"], stepped_temp)
             if actuator_handles.get("occ_mult", -1) != -1:
-                api.exchange.set_actuator_value(state, actuator_handles["occ_mult"], request.occupancy / 100.0)
+                api.exchange.set_actuator_value(state, actuator_handles["occ_mult"], occ_fraction)
             if actuator_handles.get("cooling_sp", -1) != -1:
                 api.exchange.set_actuator_value(state, actuator_handles["cooling_sp"], setpoints.zone_cooling_sp_c)
 
