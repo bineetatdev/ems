@@ -482,7 +482,7 @@
       <div class="card-header">
         <div>
           <div class="card-title">Energy forecast</div>
-          <div class="card-desc">4-hour MPC horizon · 15-min timesteps</div>
+          <div class="card-desc">4-hour MPC horizon · kWh per 15-min slot</div>
         </div>
       </div>
       <div class="forecast-wrap">
@@ -641,7 +641,8 @@ function computeState(s) {
     const t = avgTemp + offset + (Math.random()-0.5)*0.3;
     return parseFloat(Math.max(20.5, Math.min(27, t)).toFixed(1));
   });
-  const fcVals = fcLabels.map((_,i) => Math.round(Math.max(5, power - i*(tariffF>0.5?2.5:1.2) + (i>3?-3:0) + (Math.random()-0.5)*3)));
+  const grossPower = Math.max(8, basePower - mpcSaving * 0.4);
+  const fcVals = fcLabels.map((_,i) => parseFloat((Math.max(0.5, grossPower - i*(tariffF>0.5?2.5:1.2) + (i>3?-3:0) + (Math.random()-0.5)*3) * 0.25).toFixed(2)));
   const setpoints = {
     'AHU-1 supply': (18 + (1-occF)*3 + extF*1.5).toFixed(1)+'°C',
     'AHU-2 supply': (17.5 + (1-occF)*2.5 + extF*2).toFixed(1)+'°C',
@@ -690,7 +691,7 @@ function renderForecast(vals) {
   el.innerHTML = vals.map((v,i) => {
     const h = max > 0 ? Math.round((v/max)*68)+6 : 6;
     return `<div class="fc-col">
-      <div class="fc-val">${v}</div>
+      <div class="fc-val">${v}<span style="font-size:8px;font-weight:400;opacity:0.55"> kWh</span></div>
       <div class="fc-bar" style="height:${h}px;background:${colors[i]}"></div>
       <div class="fc-label">${fcLabels[i]}</div>
     </div>`;
