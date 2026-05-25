@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from api.models import OptimizeRequest, OptimizeResponse, HealthResponse, ScenarioResponse
 from simulation.mpc import compute_setpoints
@@ -28,9 +29,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-_SIM_DIR = Path(__file__).parent.parent / "simulation"
+_ROOT = Path(__file__).parent.parent
+_SIM_DIR = _ROOT / "simulation"
 _IDF_PATH = _SIM_DIR / "building.idf"
 _EPW_PATH = _SIM_DIR / "weather.epw"
+_DASHBOARD = _ROOT / "builmirai_mpc_hvac_dashboard.html"
 
 engine = SimulationEngine(idf_path=_IDF_PATH, weather_path=_EPW_PATH, ep_dir=EP_DIR)
 _engine_lock = asyncio.Lock()
@@ -42,6 +45,11 @@ SCENARIOS: dict[str, dict] = {
     "preheat":  {"occupancy": 20,  "ext_temp": 19.0, "pv_kw": 5.0,  "tariff": 7.0},
     "night":    {"occupancy": 5,   "ext_temp": 16.0, "pv_kw": 0.0,  "tariff": 5.0},
 }
+
+
+@app.get("/", include_in_schema=False)
+def dashboard() -> FileResponse:
+    return FileResponse(_DASHBOARD, media_type="text/html")
 
 
 @app.get("/health", response_model=HealthResponse)

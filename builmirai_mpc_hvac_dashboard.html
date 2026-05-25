@@ -783,7 +783,7 @@ function renderFromApi(data) {
 
 async function setScenario(key) {
   try {
-    const res = await fetch('http://localhost:8008/scenarios/' + key);
+    const res = await fetch('/scenarios/' + key);
     if (res.ok) {
       const sc = await res.json();
       state = { occ: sc.occupancy, ext: sc.ext_temp, pv: sc.pv_kw, tariff: sc.tariff };
@@ -829,7 +829,7 @@ async function runOptimise() {
   btn.textContent = '⏳ Running EnergyPlus…';
   document.getElementById('mpc-status').textContent = 'solving…';
   try {
-    const res = await fetch('http://localhost:8008/optimize', {
+    const res = await fetch('/optimize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ occupancy: state.occ, ext_temp: state.ext, pv_kw: state.pv, tariff: state.tariff })
