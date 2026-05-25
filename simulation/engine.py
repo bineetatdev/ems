@@ -53,7 +53,7 @@ def _aggregate_results(
     total_elec_j = sum(ts.get("elec_j", 0.0) for ts in timesteps)
     gross_hvac_kw = (total_cooling_j / CHILLER_COP) / (len(timesteps) * dt_seconds * 1000)
     gross_facility_kw = total_elec_j / (len(timesteps) * dt_seconds * 1000)
-    gross_electrical_kw = gross_hvac_kw + gross_facility_kw
+    gross_electrical_kw = (gross_hvac_kw + gross_facility_kw)
     net_power_kw = max(0.0, round(gross_electrical_kw - pv_kw, 1))
 
     # Savings estimated from MPC setpoint deltas vs. base setpoints.

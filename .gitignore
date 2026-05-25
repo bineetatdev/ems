@@ -4,5 +4,4 @@ __pycache__/
 *.egg-info/
 dist/
 /tmp/ep_run_*/
-simulation/building.idf
 .superpowers/

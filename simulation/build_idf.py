@@ -142,7 +142,7 @@ ZoneHVAC:EquipmentList,
 def _people(z: ZoneSpec) -> str:
     if z.server_room:
         return ""
-    sched = "Always_Off" if z.server_room else "Office_Occ"
+    sched = "OCC_MULTIPLIER"
     return f"""People,
   {z.name}_People,
   {z.name},
@@ -160,7 +160,7 @@ def _people(z: ZoneSpec) -> str:
 def _lights(z: ZoneSpec) -> str:
     area = z.width * z.depth
     watts = area * z.lighting_wm2
-    sched = "Always_On" if z.server_room else "Office_Occ"
+    sched = "Always_On" if z.server_room else "OCC_MULTIPLIER"
     return f"""Lights,
   {z.name}_Lights,
   {z.name},
@@ -180,7 +180,7 @@ def _lights(z: ZoneSpec) -> str:
 def _equipment(z: ZoneSpec) -> str:
     area = z.width * z.depth
     watts = area * z.equip_wm2
-    sched = "Always_On" if z.server_room else "Office_Occ"
+    sched = "Always_On" if z.server_room else "OCC_MULTIPLIER"
     return f"""ElectricEquipment,
   {z.name}_Equip,
   {z.name},

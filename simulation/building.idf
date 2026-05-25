@@ -1,0 +1,1123 @@
+Version, 25.2.0;
+
+Building,
+  BuilMirai Office,
+  0.0,           !- North Axis {deg}
+  City,          !- Terrain
+  0.04,          !- Loads Convergence Tolerance
+  0.4,           !- Temperature Convergence Tolerance
+  FullInteriorAndExterior,
+  5,             !- Maximum Number of Warmup Days
+  1;             !- Minimum Number of Warmup Days
+
+SimulationControl,
+  No, No, No, No, Yes, No, 1;
+
+Timestep, 4;   !- 4 per hour = 15 min intervals
+
+RunPeriod,
+  RunPeriod1, 7, 1, , 7, 1, , Monday, No, No, Yes, No, No;
+
+Site:Location,
+  London/Heathrow, 51.48, -0.45, 0.0, 24.0;
+
+GlobalGeometryRules,
+  UpperLeftCorner, CounterClockWise, World;
+
+!- ===== Schedule Type Limits =====
+
+ScheduleTypeLimits, Fraction, 0.0, 1.0, CONTINUOUS;
+ScheduleTypeLimits, Temperature, -60, 200, CONTINUOUS;
+ScheduleTypeLimits, Any Number;
+ScheduleTypeLimits, Control Type, 0, 4, DISCRETE;
+
+!- ===== Schedules =====
+
+Schedule:Compact,
+  Always_On, Fraction,
+  Through: 12/31, For: AllDays, Until: 24:00, 1.0;
+
+Schedule:Compact,
+  Always_Off, Fraction,
+  Through: 12/31, For: AllDays, Until: 24:00, 0.0;
+
+Schedule:Compact,
+  OCC_MULTIPLIER, Fraction,
+  Through: 12/31, For: AllDays, Until: 24:00, 1.0;
+
+Schedule:Compact,
+  Office_Occ, Fraction,
+  Through: 12/31,
+  For: Weekdays,
+    Until: 08:00, 0.0,
+    Until: 18:00, 1.0,
+    Until: 24:00, 0.0,
+  For: AllOtherDays,
+    Until: 24:00, 0.0;
+
+Schedule:Compact,
+  ActivityLevel_Sched, Any Number,
+  Through: 12/31, For: AllDays, Until: 24:00, 120;
+
+Schedule:Compact,
+  Dual Zone Control Type Sched, Control Type,
+  Through: 12/31, For: AllDays, Until: 24:00, 4;
+
+Schedule:Compact,
+  Heating_SP_Sched, Temperature,
+  Through: 12/31, For: AllDays, Until: 24:00, 20.0;
+
+Schedule:Compact,
+  Cooling_SP_Sched, Temperature,
+  Through: 12/31, For: AllDays, Until: 24:00, 26.0;
+
+!- ===== Materials and Constructions =====
+
+Material:NoMass,
+  Adiabatic_Mat, Smooth, 100.0;
+
+Material:NoMass,
+  ExtWall_Mat, Smooth, 0.5;
+
+Material:NoMass,
+  Floor_Mat, Smooth, 0.25;
+
+Construction, Adiabatic_Const, Adiabatic_Mat;
+Construction, ExtWall_Const, ExtWall_Mat;
+Construction, Floor_Const, Floor_Mat;
+
+WindowMaterial:SimpleGlazingSystem,
+  SimpleGlazing, 3.0, 0.3;
+
+Construction, Window_Const, SimpleGlazing;
+
+!- ===== Zone: Server Hall =====
+
+Zone,
+  Server Hall,
+  0, 0, 0, 0,
+  1,             !- Multiplier
+  ,
+  105.0,  !- Volume {m3}
+  30;  !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Server Hall_SouthWall,                   !- Name
+  Wall,           !- Surface Type
+  ExtWall_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Outdoors,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  SunExposed,                    !- Sun Exposure
+  WindExposed,                   !- Wind Exposure
+  autocalculate,
+  4,
+  0,0.0,3.5,
+  0,0.0,0,
+  5,0.0,0,
+  5,0.0,3.5;
+BuildingSurface:Detailed,
+  Server Hall_NorthWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  5,6,3.5,
+  5,6,0,
+  0,6,0,
+  0,6,3.5;
+BuildingSurface:Detailed,
+  Server Hall_EastWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  5,0.0,3.5,
+  5,0.0,0,
+  5,6,0,
+  5,6,3.5;
+BuildingSurface:Detailed,
+  Server Hall_WestWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  0,6,3.5,
+  0,6,0,
+  0,0.0,0,
+  0,0.0,3.5;
+BuildingSurface:Detailed,
+  Server Hall_Floor,                   !- Name
+  Floor,           !- Surface Type
+  Floor_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Ground,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  0.5,
+  4,
+  0,0.0,0,
+  0,6,0,
+  5,6,0,
+  5,0.0,0;
+BuildingSurface:Detailed,
+  Server Hall_Ceiling,                   !- Name
+  Ceiling,           !- Surface Type
+  Adiabatic_Const,
+  Server Hall,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  0,6,3.5,
+  5,6,3.5,
+  5,0.0,3.5,
+  0,0.0,3.5;
+FenestrationSurface:Detailed,
+  Server Hall_SouthWindow,
+  Window,
+  Window_Const,             !- Construction Name
+  Server Hall_SouthWall,            !- Building Surface Name
+  ,  ,  ,  ,
+  4,
+  0.5,0.0,3.0,
+  0.5,0.0,0.8,
+  4.5,0.0,0.8,
+  4.5,0.0,3.0;
+Lights,
+  Server Hall_Lights,
+  Server Hall,
+  Always_On,
+  LightingLevel,
+  300.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  ,                         !- Return Air Fraction (default 0)
+  0.0,                      !- Fraction Radiant
+  0.0,                      !- Fraction Visible
+  1.0,                      !- Fraction Replaceable
+  GeneralLights;
+ElectricEquipment,
+  Server Hall_Equip,
+  Server Hall,
+  Always_On,
+  EquipmentLevel,
+  3000.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  0.0,                      !- Fraction Latent
+  0.5,                      !- Fraction Radiant
+  0.0;                      !- Fraction Lost
+ZoneControl:Thermostat,
+  Server Hall_Thermostat,
+  Server Hall,
+  Dual Zone Control Type Sched,
+  ThermostatSetpoint:DualSetpoint,
+  Server Hall_DualSP;
+
+ThermostatSetpoint:DualSetpoint,
+  Server Hall_DualSP,
+  Heating_SP_Sched,         !- Heating Setpoint Temperature Schedule
+  Cooling_SP_Sched;         !- Cooling Setpoint Temperature Schedule
+
+ZoneHVAC:IdealLoadsAirSystem,
+  Server Hall_IdealLoads,        !- Name
+  ,                         !- Availability Schedule
+  Server Hall_SupplyAirInlet,    !- Zone Supply Air Node Name
+  Server Hall_ExhaustAirOutlet,  !- Zone Exhaust Air Node Name
+  ,                         !- System Inlet Air Node Name
+  50,                       !- Maximum Heating Supply Air Temperature {C}
+  13,                       !- Minimum Cooling Supply Air Temperature {C}
+  0.015,                    !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.009,                    !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+  NoLimit,                  !- Heating Limit
+  ,                         !- Maximum Heating Air Flow Rate (autosize)
+  ,                         !- Maximum Sensible Heating Capacity (autosize)
+  NoLimit,                  !- Cooling Limit
+  ,                         !- Maximum Cooling Air Flow Rate (autosize)
+  ,                         !- Maximum Total Cooling Capacity (autosize)
+  ,                         !- Heating Availability Schedule
+  ,                         !- Cooling Availability Schedule
+  ,                         !- Dehumidification Control Type
+  ,                         !- Cooling Sensible Heat Ratio
+  ,                         !- Humidification Control Type
+  ,                         !- Design Specification Outdoor Air Object Name
+  ,                         !- Outdoor Air Inlet Node Name
+  None;                     !- Demand Controlled Ventilation Type
+
+ZoneHVAC:EquipmentConnections,
+  Server Hall,                   !- Zone Name
+  Server Hall_EquipmentList,     !- Zone Conditioning Equipment List Name
+  Server Hall_SupplyAirInlet,    !- Zone Air Inlet Node or NodeList Name
+  Server Hall_ExhaustAirOutlet,  !- Zone Air Exhaust Node or NodeList Name
+  Server Hall_ZoneAirNode,       !- Zone Air Node Name
+  Server Hall_ZoneReturnAir;     !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentList,
+  Server Hall_EquipmentList,
+  SequentialLoad,
+  ZoneHVAC:IdealLoadsAirSystem,
+  Server Hall_IdealLoads,
+  1, 1;
+Output:Variable,Server Hall,Zone Air Temperature,TimeStep;
+Output:Variable,Server Hall,Zone Ideal Loads Supply Air Total Cooling Energy,TimeStep;
+Output:Variable,Server Hall,Zone Ideal Loads Supply Air Total Heating Energy,TimeStep;
+
+!- ===== Zone: Open Plan =====
+
+Zone,
+  Open Plan,
+  0, 0, 0, 0,
+  1,             !- Multiplier
+  ,
+  686.0,  !- Volume {m3}
+  196;  !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Open Plan_SouthWall,                   !- Name
+  Wall,           !- Surface Type
+  ExtWall_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Outdoors,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  SunExposed,                    !- Sun Exposure
+  WindExposed,                   !- Wind Exposure
+  autocalculate,
+  4,
+  10,0.0,3.5,
+  10,0.0,0,
+  24,0.0,0,
+  24,0.0,3.5;
+BuildingSurface:Detailed,
+  Open Plan_NorthWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  24,14,3.5,
+  24,14,0,
+  10,14,0,
+  10,14,3.5;
+BuildingSurface:Detailed,
+  Open Plan_EastWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  24,0.0,3.5,
+  24,0.0,0,
+  24,14,0,
+  24,14,3.5;
+BuildingSurface:Detailed,
+  Open Plan_WestWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  10,14,3.5,
+  10,14,0,
+  10,0.0,0,
+  10,0.0,3.5;
+BuildingSurface:Detailed,
+  Open Plan_Floor,                   !- Name
+  Floor,           !- Surface Type
+  Floor_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Ground,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  0.5,
+  4,
+  10,0.0,0,
+  10,14,0,
+  24,14,0,
+  24,0.0,0;
+BuildingSurface:Detailed,
+  Open Plan_Ceiling,                   !- Name
+  Ceiling,           !- Surface Type
+  Adiabatic_Const,
+  Open Plan,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  10,14,3.5,
+  24,14,3.5,
+  24,0.0,3.5,
+  10,0.0,3.5;
+FenestrationSurface:Detailed,
+  Open Plan_SouthWindow,
+  Window,
+  Window_Const,             !- Construction Name
+  Open Plan_SouthWall,            !- Building Surface Name
+  ,  ,  ,  ,
+  4,
+  11.4,0.0,3.0,
+  11.4,0.0,0.8,
+  22.6,0.0,0.8,
+  22.6,0.0,3.0;
+People,
+  Open Plan_People,
+  Open Plan,
+  OCC_MULTIPLIER,                  !- Number of People Schedule
+  People,
+  40,               !- Number of People
+  ,                         !- People per Floor Area (blank)
+  ,                         !- Floor Area per Person (blank)
+  0.3,                      !- Fraction Radiant
+  ,                         !- Sensible Heat Fraction (autocalculate default)
+  ActivityLevel_Sched;
+Lights,
+  Open Plan_Lights,
+  Open Plan,
+  OCC_MULTIPLIER,
+  LightingLevel,
+  1960.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  ,                         !- Return Air Fraction (default 0)
+  0.0,                      !- Fraction Radiant
+  0.0,                      !- Fraction Visible
+  1.0,                      !- Fraction Replaceable
+  GeneralLights;
+ElectricEquipment,
+  Open Plan_Equip,
+  Open Plan,
+  OCC_MULTIPLIER,
+  EquipmentLevel,
+  1960.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  0.0,                      !- Fraction Latent
+  0.5,                      !- Fraction Radiant
+  0.0;                      !- Fraction Lost
+ZoneControl:Thermostat,
+  Open Plan_Thermostat,
+  Open Plan,
+  Dual Zone Control Type Sched,
+  ThermostatSetpoint:DualSetpoint,
+  Open Plan_DualSP;
+
+ThermostatSetpoint:DualSetpoint,
+  Open Plan_DualSP,
+  Heating_SP_Sched,         !- Heating Setpoint Temperature Schedule
+  Cooling_SP_Sched;         !- Cooling Setpoint Temperature Schedule
+
+ZoneHVAC:IdealLoadsAirSystem,
+  Open Plan_IdealLoads,        !- Name
+  ,                         !- Availability Schedule
+  Open Plan_SupplyAirInlet,    !- Zone Supply Air Node Name
+  Open Plan_ExhaustAirOutlet,  !- Zone Exhaust Air Node Name
+  ,                         !- System Inlet Air Node Name
+  50,                       !- Maximum Heating Supply Air Temperature {C}
+  13,                       !- Minimum Cooling Supply Air Temperature {C}
+  0.015,                    !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.009,                    !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+  NoLimit,                  !- Heating Limit
+  ,                         !- Maximum Heating Air Flow Rate (autosize)
+  ,                         !- Maximum Sensible Heating Capacity (autosize)
+  NoLimit,                  !- Cooling Limit
+  ,                         !- Maximum Cooling Air Flow Rate (autosize)
+  ,                         !- Maximum Total Cooling Capacity (autosize)
+  ,                         !- Heating Availability Schedule
+  ,                         !- Cooling Availability Schedule
+  ,                         !- Dehumidification Control Type
+  ,                         !- Cooling Sensible Heat Ratio
+  ,                         !- Humidification Control Type
+  ,                         !- Design Specification Outdoor Air Object Name
+  ,                         !- Outdoor Air Inlet Node Name
+  None;                     !- Demand Controlled Ventilation Type
+
+ZoneHVAC:EquipmentConnections,
+  Open Plan,                   !- Zone Name
+  Open Plan_EquipmentList,     !- Zone Conditioning Equipment List Name
+  Open Plan_SupplyAirInlet,    !- Zone Air Inlet Node or NodeList Name
+  Open Plan_ExhaustAirOutlet,  !- Zone Air Exhaust Node or NodeList Name
+  Open Plan_ZoneAirNode,       !- Zone Air Node Name
+  Open Plan_ZoneReturnAir;     !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentList,
+  Open Plan_EquipmentList,
+  SequentialLoad,
+  ZoneHVAC:IdealLoadsAirSystem,
+  Open Plan_IdealLoads,
+  1, 1;
+Output:Variable,Open Plan,Zone Air Temperature,TimeStep;
+Output:Variable,Open Plan,Zone Ideal Loads Supply Air Total Cooling Energy,TimeStep;
+Output:Variable,Open Plan,Zone Ideal Loads Supply Air Total Heating Energy,TimeStep;
+
+!- ===== Zone: Boardroom =====
+
+Zone,
+  Boardroom,
+  0, 0, 0, 0,
+  1,             !- Multiplier
+  ,
+  171.5,  !- Volume {m3}
+  49;  !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Boardroom_SouthWall,                   !- Name
+  Wall,           !- Surface Type
+  ExtWall_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Outdoors,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  SunExposed,                    !- Sun Exposure
+  WindExposed,                   !- Wind Exposure
+  autocalculate,
+  4,
+  30,0.0,3.5,
+  30,0.0,0,
+  37,0.0,0,
+  37,0.0,3.5;
+BuildingSurface:Detailed,
+  Boardroom_NorthWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  37,7,3.5,
+  37,7,0,
+  30,7,0,
+  30,7,3.5;
+BuildingSurface:Detailed,
+  Boardroom_EastWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  37,0.0,3.5,
+  37,0.0,0,
+  37,7,0,
+  37,7,3.5;
+BuildingSurface:Detailed,
+  Boardroom_WestWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  30,7,3.5,
+  30,7,0,
+  30,0.0,0,
+  30,0.0,3.5;
+BuildingSurface:Detailed,
+  Boardroom_Floor,                   !- Name
+  Floor,           !- Surface Type
+  Floor_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Ground,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  0.5,
+  4,
+  30,0.0,0,
+  30,7,0,
+  37,7,0,
+  37,0.0,0;
+BuildingSurface:Detailed,
+  Boardroom_Ceiling,                   !- Name
+  Ceiling,           !- Surface Type
+  Adiabatic_Const,
+  Boardroom,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  30,7,3.5,
+  37,7,3.5,
+  37,0.0,3.5,
+  30,0.0,3.5;
+FenestrationSurface:Detailed,
+  Boardroom_SouthWindow,
+  Window,
+  Window_Const,             !- Construction Name
+  Boardroom_SouthWall,            !- Building Surface Name
+  ,  ,  ,  ,
+  4,
+  30.7,0.0,3.0,
+  30.7,0.0,0.8,
+  36.3,0.0,0.8,
+  36.3,0.0,3.0;
+People,
+  Boardroom_People,
+  Boardroom,
+  OCC_MULTIPLIER,                  !- Number of People Schedule
+  People,
+  20,               !- Number of People
+  ,                         !- People per Floor Area (blank)
+  ,                         !- Floor Area per Person (blank)
+  0.3,                      !- Fraction Radiant
+  ,                         !- Sensible Heat Fraction (autocalculate default)
+  ActivityLevel_Sched;
+Lights,
+  Boardroom_Lights,
+  Boardroom,
+  OCC_MULTIPLIER,
+  LightingLevel,
+  490.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  ,                         !- Return Air Fraction (default 0)
+  0.0,                      !- Fraction Radiant
+  0.0,                      !- Fraction Visible
+  1.0,                      !- Fraction Replaceable
+  GeneralLights;
+ElectricEquipment,
+  Boardroom_Equip,
+  Boardroom,
+  OCC_MULTIPLIER,
+  EquipmentLevel,
+  245.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  0.0,                      !- Fraction Latent
+  0.5,                      !- Fraction Radiant
+  0.0;                      !- Fraction Lost
+ZoneControl:Thermostat,
+  Boardroom_Thermostat,
+  Boardroom,
+  Dual Zone Control Type Sched,
+  ThermostatSetpoint:DualSetpoint,
+  Boardroom_DualSP;
+
+ThermostatSetpoint:DualSetpoint,
+  Boardroom_DualSP,
+  Heating_SP_Sched,         !- Heating Setpoint Temperature Schedule
+  Cooling_SP_Sched;         !- Cooling Setpoint Temperature Schedule
+
+ZoneHVAC:IdealLoadsAirSystem,
+  Boardroom_IdealLoads,        !- Name
+  ,                         !- Availability Schedule
+  Boardroom_SupplyAirInlet,    !- Zone Supply Air Node Name
+  Boardroom_ExhaustAirOutlet,  !- Zone Exhaust Air Node Name
+  ,                         !- System Inlet Air Node Name
+  50,                       !- Maximum Heating Supply Air Temperature {C}
+  13,                       !- Minimum Cooling Supply Air Temperature {C}
+  0.015,                    !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.009,                    !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+  NoLimit,                  !- Heating Limit
+  ,                         !- Maximum Heating Air Flow Rate (autosize)
+  ,                         !- Maximum Sensible Heating Capacity (autosize)
+  NoLimit,                  !- Cooling Limit
+  ,                         !- Maximum Cooling Air Flow Rate (autosize)
+  ,                         !- Maximum Total Cooling Capacity (autosize)
+  ,                         !- Heating Availability Schedule
+  ,                         !- Cooling Availability Schedule
+  ,                         !- Dehumidification Control Type
+  ,                         !- Cooling Sensible Heat Ratio
+  ,                         !- Humidification Control Type
+  ,                         !- Design Specification Outdoor Air Object Name
+  ,                         !- Outdoor Air Inlet Node Name
+  None;                     !- Demand Controlled Ventilation Type
+
+ZoneHVAC:EquipmentConnections,
+  Boardroom,                   !- Zone Name
+  Boardroom_EquipmentList,     !- Zone Conditioning Equipment List Name
+  Boardroom_SupplyAirInlet,    !- Zone Air Inlet Node or NodeList Name
+  Boardroom_ExhaustAirOutlet,  !- Zone Air Exhaust Node or NodeList Name
+  Boardroom_ZoneAirNode,       !- Zone Air Node Name
+  Boardroom_ZoneReturnAir;     !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentList,
+  Boardroom_EquipmentList,
+  SequentialLoad,
+  ZoneHVAC:IdealLoadsAirSystem,
+  Boardroom_IdealLoads,
+  1, 1;
+Output:Variable,Boardroom,Zone Air Temperature,TimeStep;
+Output:Variable,Boardroom,Zone Ideal Loads Supply Air Total Cooling Energy,TimeStep;
+Output:Variable,Boardroom,Zone Ideal Loads Supply Air Total Heating Energy,TimeStep;
+
+!- ===== Zone: Reception =====
+
+Zone,
+  Reception,
+  0, 0, 0, 0,
+  1,             !- Multiplier
+  ,
+  147.0,  !- Volume {m3}
+  42;  !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Reception_SouthWall,                   !- Name
+  Wall,           !- Surface Type
+  ExtWall_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Outdoors,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  SunExposed,                    !- Sun Exposure
+  WindExposed,                   !- Wind Exposure
+  autocalculate,
+  4,
+  42,0.0,3.5,
+  42,0.0,0,
+  48,0.0,0,
+  48,0.0,3.5;
+BuildingSurface:Detailed,
+  Reception_NorthWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  48,7,3.5,
+  48,7,0,
+  42,7,0,
+  42,7,3.5;
+BuildingSurface:Detailed,
+  Reception_EastWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  48,0.0,3.5,
+  48,0.0,0,
+  48,7,0,
+  48,7,3.5;
+BuildingSurface:Detailed,
+  Reception_WestWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  42,7,3.5,
+  42,7,0,
+  42,0.0,0,
+  42,0.0,3.5;
+BuildingSurface:Detailed,
+  Reception_Floor,                   !- Name
+  Floor,           !- Surface Type
+  Floor_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Ground,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  0.5,
+  4,
+  42,0.0,0,
+  42,7,0,
+  48,7,0,
+  48,0.0,0;
+BuildingSurface:Detailed,
+  Reception_Ceiling,                   !- Name
+  Ceiling,           !- Surface Type
+  Adiabatic_Const,
+  Reception,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  42,7,3.5,
+  48,7,3.5,
+  48,0.0,3.5,
+  42,0.0,3.5;
+FenestrationSurface:Detailed,
+  Reception_SouthWindow,
+  Window,
+  Window_Const,             !- Construction Name
+  Reception_SouthWall,            !- Building Surface Name
+  ,  ,  ,  ,
+  4,
+  42.6,0.0,3.0,
+  42.6,0.0,0.8,
+  47.4,0.0,0.8,
+  47.4,0.0,3.0;
+People,
+  Reception_People,
+  Reception,
+  OCC_MULTIPLIER,                  !- Number of People Schedule
+  People,
+  5,               !- Number of People
+  ,                         !- People per Floor Area (blank)
+  ,                         !- Floor Area per Person (blank)
+  0.3,                      !- Fraction Radiant
+  ,                         !- Sensible Heat Fraction (autocalculate default)
+  ActivityLevel_Sched;
+Lights,
+  Reception_Lights,
+  Reception,
+  OCC_MULTIPLIER,
+  LightingLevel,
+  420.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  ,                         !- Return Air Fraction (default 0)
+  0.0,                      !- Fraction Radiant
+  0.0,                      !- Fraction Visible
+  1.0,                      !- Fraction Replaceable
+  GeneralLights;
+ElectricEquipment,
+  Reception_Equip,
+  Reception,
+  OCC_MULTIPLIER,
+  EquipmentLevel,
+  210.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  0.0,                      !- Fraction Latent
+  0.5,                      !- Fraction Radiant
+  0.0;                      !- Fraction Lost
+ZoneControl:Thermostat,
+  Reception_Thermostat,
+  Reception,
+  Dual Zone Control Type Sched,
+  ThermostatSetpoint:DualSetpoint,
+  Reception_DualSP;
+
+ThermostatSetpoint:DualSetpoint,
+  Reception_DualSP,
+  Heating_SP_Sched,         !- Heating Setpoint Temperature Schedule
+  Cooling_SP_Sched;         !- Cooling Setpoint Temperature Schedule
+
+ZoneHVAC:IdealLoadsAirSystem,
+  Reception_IdealLoads,        !- Name
+  ,                         !- Availability Schedule
+  Reception_SupplyAirInlet,    !- Zone Supply Air Node Name
+  Reception_ExhaustAirOutlet,  !- Zone Exhaust Air Node Name
+  ,                         !- System Inlet Air Node Name
+  50,                       !- Maximum Heating Supply Air Temperature {C}
+  13,                       !- Minimum Cooling Supply Air Temperature {C}
+  0.015,                    !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.009,                    !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+  NoLimit,                  !- Heating Limit
+  ,                         !- Maximum Heating Air Flow Rate (autosize)
+  ,                         !- Maximum Sensible Heating Capacity (autosize)
+  NoLimit,                  !- Cooling Limit
+  ,                         !- Maximum Cooling Air Flow Rate (autosize)
+  ,                         !- Maximum Total Cooling Capacity (autosize)
+  ,                         !- Heating Availability Schedule
+  ,                         !- Cooling Availability Schedule
+  ,                         !- Dehumidification Control Type
+  ,                         !- Cooling Sensible Heat Ratio
+  ,                         !- Humidification Control Type
+  ,                         !- Design Specification Outdoor Air Object Name
+  ,                         !- Outdoor Air Inlet Node Name
+  None;                     !- Demand Controlled Ventilation Type
+
+ZoneHVAC:EquipmentConnections,
+  Reception,                   !- Zone Name
+  Reception_EquipmentList,     !- Zone Conditioning Equipment List Name
+  Reception_SupplyAirInlet,    !- Zone Air Inlet Node or NodeList Name
+  Reception_ExhaustAirOutlet,  !- Zone Air Exhaust Node or NodeList Name
+  Reception_ZoneAirNode,       !- Zone Air Node Name
+  Reception_ZoneReturnAir;     !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentList,
+  Reception_EquipmentList,
+  SequentialLoad,
+  ZoneHVAC:IdealLoadsAirSystem,
+  Reception_IdealLoads,
+  1, 1;
+Output:Variable,Reception,Zone Air Temperature,TimeStep;
+Output:Variable,Reception,Zone Ideal Loads Supply Air Total Cooling Energy,TimeStep;
+Output:Variable,Reception,Zone Ideal Loads Supply Air Total Heating Energy,TimeStep;
+
+!- ===== Zone: Lab A =====
+
+Zone,
+  Lab A,
+  0, 0, 0, 0,
+  1,             !- Multiplier
+  ,
+  283.5,  !- Volume {m3}
+  81;  !- Floor Area {m2}
+
+BuildingSurface:Detailed,
+  Lab A_SouthWall,                   !- Name
+  Wall,           !- Surface Type
+  ExtWall_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Outdoors,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  SunExposed,                    !- Sun Exposure
+  WindExposed,                   !- Wind Exposure
+  autocalculate,
+  4,
+  53,0.0,3.5,
+  53,0.0,0,
+  62,0.0,0,
+  62,0.0,3.5;
+BuildingSurface:Detailed,
+  Lab A_NorthWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  62,9,3.5,
+  62,9,0,
+  53,9,0,
+  53,9,3.5;
+BuildingSurface:Detailed,
+  Lab A_EastWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  62,0.0,3.5,
+  62,0.0,0,
+  62,9,0,
+  62,9,3.5;
+BuildingSurface:Detailed,
+  Lab A_WestWall,                   !- Name
+  Wall,           !- Surface Type
+  Adiabatic_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  53,9,3.5,
+  53,9,0,
+  53,0.0,0,
+  53,0.0,3.5;
+BuildingSurface:Detailed,
+  Lab A_Floor,                   !- Name
+  Floor,           !- Surface Type
+  Floor_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Ground,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  0.5,
+  4,
+  53,0.0,0,
+  53,9,0,
+  62,9,0,
+  62,0.0,0;
+BuildingSurface:Detailed,
+  Lab A_Ceiling,                   !- Name
+  Ceiling,           !- Surface Type
+  Adiabatic_Const,
+  Lab A,                   !- Zone Name
+  ,                         !- Space Name
+  Adiabatic,               !- Outside Boundary Condition
+  ,  !- Outside Boundary Condition Object
+  NoSun,                    !- Sun Exposure
+  NoWind,                   !- Wind Exposure
+  autocalculate,
+  4,
+  53,9,3.5,
+  62,9,3.5,
+  62,0.0,3.5,
+  53,0.0,3.5;
+FenestrationSurface:Detailed,
+  Lab A_SouthWindow,
+  Window,
+  Window_Const,             !- Construction Name
+  Lab A_SouthWall,            !- Building Surface Name
+  ,  ,  ,  ,
+  4,
+  53.9,0.0,3.0,
+  53.9,0.0,0.8,
+  61.1,0.0,0.8,
+  61.1,0.0,3.0;
+People,
+  Lab A_People,
+  Lab A,
+  OCC_MULTIPLIER,                  !- Number of People Schedule
+  People,
+  15,               !- Number of People
+  ,                         !- People per Floor Area (blank)
+  ,                         !- Floor Area per Person (blank)
+  0.3,                      !- Fraction Radiant
+  ,                         !- Sensible Heat Fraction (autocalculate default)
+  ActivityLevel_Sched;
+Lights,
+  Lab A_Lights,
+  Lab A,
+  OCC_MULTIPLIER,
+  LightingLevel,
+  810.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  ,                         !- Return Air Fraction (default 0)
+  0.0,                      !- Fraction Radiant
+  0.0,                      !- Fraction Visible
+  1.0,                      !- Fraction Replaceable
+  GeneralLights;
+ElectricEquipment,
+  Lab A_Equip,
+  Lab A,
+  OCC_MULTIPLIER,
+  EquipmentLevel,
+  3240.0,
+  ,                         !- Watts per Floor Area (blank)
+  ,                         !- Watts per Person (blank)
+  0.0,                      !- Fraction Latent
+  0.5,                      !- Fraction Radiant
+  0.0;                      !- Fraction Lost
+ZoneControl:Thermostat,
+  Lab A_Thermostat,
+  Lab A,
+  Dual Zone Control Type Sched,
+  ThermostatSetpoint:DualSetpoint,
+  Lab A_DualSP;
+
+ThermostatSetpoint:DualSetpoint,
+  Lab A_DualSP,
+  Heating_SP_Sched,         !- Heating Setpoint Temperature Schedule
+  Cooling_SP_Sched;         !- Cooling Setpoint Temperature Schedule
+
+ZoneHVAC:IdealLoadsAirSystem,
+  Lab A_IdealLoads,        !- Name
+  ,                         !- Availability Schedule
+  Lab A_SupplyAirInlet,    !- Zone Supply Air Node Name
+  Lab A_ExhaustAirOutlet,  !- Zone Exhaust Air Node Name
+  ,                         !- System Inlet Air Node Name
+  50,                       !- Maximum Heating Supply Air Temperature {C}
+  13,                       !- Minimum Cooling Supply Air Temperature {C}
+  0.015,                    !- Maximum Heating Supply Air Humidity Ratio {kgWater/kgDryAir}
+  0.009,                    !- Minimum Cooling Supply Air Humidity Ratio {kgWater/kgDryAir}
+  NoLimit,                  !- Heating Limit
+  ,                         !- Maximum Heating Air Flow Rate (autosize)
+  ,                         !- Maximum Sensible Heating Capacity (autosize)
+  NoLimit,                  !- Cooling Limit
+  ,                         !- Maximum Cooling Air Flow Rate (autosize)
+  ,                         !- Maximum Total Cooling Capacity (autosize)
+  ,                         !- Heating Availability Schedule
+  ,                         !- Cooling Availability Schedule
+  ,                         !- Dehumidification Control Type
+  ,                         !- Cooling Sensible Heat Ratio
+  ,                         !- Humidification Control Type
+  ,                         !- Design Specification Outdoor Air Object Name
+  ,                         !- Outdoor Air Inlet Node Name
+  None;                     !- Demand Controlled Ventilation Type
+
+ZoneHVAC:EquipmentConnections,
+  Lab A,                   !- Zone Name
+  Lab A_EquipmentList,     !- Zone Conditioning Equipment List Name
+  Lab A_SupplyAirInlet,    !- Zone Air Inlet Node or NodeList Name
+  Lab A_ExhaustAirOutlet,  !- Zone Air Exhaust Node or NodeList Name
+  Lab A_ZoneAirNode,       !- Zone Air Node Name
+  Lab A_ZoneReturnAir;     !- Zone Return Air Node or NodeList Name
+
+ZoneHVAC:EquipmentList,
+  Lab A_EquipmentList,
+  SequentialLoad,
+  ZoneHVAC:IdealLoadsAirSystem,
+  Lab A_IdealLoads,
+  1, 1;
+Output:Variable,Lab A,Zone Air Temperature,TimeStep;
+Output:Variable,Lab A,Zone Ideal Loads Supply Air Total Cooling Energy,TimeStep;
+Output:Variable,Lab A,Zone Ideal Loads Supply Air Total Heating Energy,TimeStep;
+
+!- ===== Global Outputs =====
+
+Output:Variable,*,Zone Air Temperature,TimeStep;
+Output:Meter,Electricity:Facility,TimeStep;
+OutputControl:Table:Style, Comma;
+Output:Table:SummaryReports, AllSummary;
