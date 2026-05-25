@@ -1,4 +1,5 @@
 import asyncio
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -32,8 +33,26 @@ app.add_middleware(
 _ROOT = Path(__file__).parent.parent
 _SIM_DIR = _ROOT / "simulation"
 _IDF_PATH = _SIM_DIR / "building.idf"
-_EPW_PATH = _SIM_DIR / "weather.epw"
 _DASHBOARD = _ROOT / "builmirai_mpc_hvac_dashboard.html"
+
+# EPW resolution order:
+#   1. WEATHER_FILE env var (explicit path)
+#   2. simulation/weather.epw in repo (bundled)
+#   3. First .epw found inside ENERGYPLUS_DIR/WeatherData/
+def _resolve_epw() -> Path:
+    if os.environ.get("WEATHER_FILE"):
+        return Path(os.environ["WEATHER_FILE"])
+    bundled = _SIM_DIR / "weather.epw"
+    if bundled.exists() and bundled.stat().st_size > 1000:
+        return bundled
+    ep_weather_dir = EP_DIR / "WeatherData"
+    if ep_weather_dir.is_dir():
+        epw_files = list(ep_weather_dir.glob("*.epw"))
+        if epw_files:
+            return epw_files[0]
+    return bundled  # let EnergyPlus report the error with the real path
+
+_EPW_PATH = _resolve_epw()
 
 engine = SimulationEngine(idf_path=_IDF_PATH, weather_path=_EPW_PATH, ep_dir=EP_DIR)
 _engine_lock = asyncio.Lock()
@@ -54,8 +73,9 @@ def dashboard() -> FileResponse:
 
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
+    epw_ok = _EPW_PATH.exists() and _EPW_PATH.stat().st_size > 1000
     return HealthResponse(
-        status="ok",
+        status="ok" if epw_ok else "degraded",
         energyplus_version="25.2",
         idf_loaded=_IDF_PATH.exists(),
     )

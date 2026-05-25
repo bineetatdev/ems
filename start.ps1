@@ -4,12 +4,14 @@
 #   $env:PORT = "9000"; .\start.ps1
 
 param(
-    [int]$Port = if ($env:PORT) { [int]$env:PORT } else { 8008 },
-    [string]$EnergyPlusDir = if ($env:ENERGYPLUS_DIR) { $env:ENERGYPLUS_DIR } else { "C:\EnergyPlusV25-2-0" }
+    [int]$Port             = if ($env:PORT)           { [int]$env:PORT }           else { 8008 },
+    [string]$EnergyPlusDir = if ($env:ENERGYPLUS_DIR) { $env:ENERGYPLUS_DIR }      else { "C:\EnergyPlusV25-2-0" },
+    [string]$WeatherFile   = if ($env:WEATHER_FILE)   { $env:WEATHER_FILE }        else { "" }
 )
 
 $env:PORT = $Port
 $env:ENERGYPLUS_DIR = $EnergyPlusDir
+if ($WeatherFile) { $env:WEATHER_FILE = $WeatherFile }
 
 Write-Host "========================================" -ForegroundColor Cyan
 Write-Host "  BuilMirai MPC HVAC Dashboard" -ForegroundColor Cyan

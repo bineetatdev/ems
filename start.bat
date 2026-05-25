@@ -4,6 +4,7 @@
 :: Override defaults by setting env vars before running:
 ::   set PORT=9000
 ::   set ENERGYPLUS_DIR=C:\EnergyPlusV25-2-0
+::   set WEATHER_FILE=C:\EnergyPlusV25-2-0\WeatherData\GBR_ENG_London.Gatwick.037760_TMYx.epw
 ::   start.bat
 
 if not defined PORT set PORT=8008
