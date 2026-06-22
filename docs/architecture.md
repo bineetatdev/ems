@@ -1,108 +1,67 @@
-# BuilMirai Agentic BMS — Architecture Diagram
+# BuilMirai Agentic BMS — Architecture
 
 ```mermaid
-flowchart TB
-    %% ── Browser ──────────────────────────────────────────────────────
-    subgraph Browser["🌐  Browser  (builmirai_mpc_hvac_dashboard.html)"]
-        direction LR
-        UI_IN["Sliders\nOccupancy · Ext Temp\nSolar PV · Grid Tariff"]
-        UI_OUT["Metrics Panel\nZone Temps · Forecast\nAgent Trace · BAT chip"]
+flowchart TD
+    USER["👤 Operator"]
+
+    subgraph UI["Dashboard"]
+        DASH["Web UI\nSliders · Metrics · Agent Trace"]
     end
 
-    %% ── FastAPI ───────────────────────────────────────────────────────
-    subgraph API["🚀  FastAPI Server  (api/main.py)"]
-        direction TB
-        OPT["POST /optimize"]
-        HEALTH["GET /health\nGET /scenarios/{name}"]
+    subgraph BACKEND["API Server"]
+        API["REST API\nPOST /optimize"]
     end
 
-    %% ── LangGraph ────────────────────────────────────────────────────
-    subgraph LG["🤖  LangGraph StateGraph  (simulation/graph.py)"]
+    subgraph AGENTS["Multi-Agent System"]
         direction TB
-        ENTRY["Entry Node\nSeed battery SOC\nfrom scenario"]
+        ENTRY["Entry Node"]
 
-        subgraph FAN["Parallel fan-out  ── 4 LLM agents ──"]
+        subgraph PARALLEL["Parallel LLM Agents"]
             direction LR
-            DA["Demand Agent\ndemand_limit_kw\ndr_signal"]
-            SA["Supply Agent\npv_divert_pct\ngrid_import_limit_kw"]
-            BA["Battery Agent\ncharge_discharge_kw"]
-            TA["Thermal Agent\nahu1/2_supply_c\nchiller_c · free_cool_pct"]
+            D["Demand\nAgent"]
+            S["Supply\nAgent"]
+            B["Battery\nAgent"]
+            T["Thermal\nAgent"]
         end
 
-        ORCH["Orchestration Agent\n(pure Python)\nReconcile → final_setpoints\nBuild agent_trace"]
+        ORC["Orchestration Agent\nfinal setpoints"]
     end
 
-    %% ── Simulation ───────────────────────────────────────────────────
-    subgraph SIM["⚡  EnergyPlus Engine  (simulation/engine.py)"]
-        EP["5-zone Office\nCo-simulation\nSimulationEngine.run()"]
+    subgraph CLOUD["Cloud LLM"]
+        LLM["Groq\nllama-3.3-70b"]
     end
 
-    %% ── Battery ──────────────────────────────────────────────────────
-    subgraph BAT["🔋  Battery Module  (simulation/battery.py)"]
-        BS["BatteryState\n100 kWh capacity\n±25 kW  ·  C/2 taper >80% SOC"]
+    subgraph SIMULATION["Building Simulation"]
+        EPS["EnergyPlus\n5-zone Office"]
     end
 
-    %% ── External ─────────────────────────────────────────────────────
-    GROQ["☁️  Groq LLM API\nllama-3.3-70b-versatile\n(env-swappable via LLM_PROVIDER)"]
+    subgraph STORAGE["On-site Storage"]
+        BAT["Battery\n100 kWh"]
+    end
 
-    %% ── Flows ────────────────────────────────────────────────────────
-    UI_IN  -->|"POST /optimize\n{occupancy, ext_temp, pv_kw, tariff, scenario}"| OPT
+    USER -->|"adjusts inputs"| DASH
+    DASH -->|"HTTP POST"| API
+    API --> ENTRY
+    ENTRY --> D & S & B & T
+    D & S & B & T <-->|"LLM reasoning"| LLM
+    D & S & B & T --> ORC
+    ORC -->|"HVAC setpoints"| EPS
+    B -->|"charge / discharge"| BAT
+    BAT -->|"SOC feedback"| ENTRY
+    EPS -->|"energy results"| API
+    API -->|"metrics + agent trace"| DASH
 
-    OPT    -->|BMSState| ENTRY
-    ENTRY  --> DA & SA & BA & TA
-    DA     -->|LLM call| GROQ
-    SA     -->|LLM call| GROQ
-    BA     -->|LLM call| GROQ
-    TA     -->|LLM call| GROQ
-    DA & SA & BA & TA -->|AgentAction\nproposed · score · rationale| ORCH
+    classDef agent fill:#1D4ED8,color:#fff,stroke:none
+    classDef cloud fill:#7C3AED,color:#fff,stroke:none
+    classDef sim   fill:#0F766E,color:#fff,stroke:none
+    classDef bat   fill:#B45309,color:#fff,stroke:none
+    classDef ui    fill:#1F2937,color:#fff,stroke:none
+    classDef api   fill:#1F2937,color:#fff,stroke:none
 
-    ORCH   -->|Setpoints dataclass| EP
-    EP     -->|SimResult\npower_kw · zone_temps\nenergy_forecast_kwh| OPT
-
-    BA     -->|charge_discharge_kw| BS
-    BS     -->|soc_pct\n(scenario-seeded)| ENTRY
-
-    OPT    -->|"OptimizeResponse\n{metrics, setpoints, agent_trace, battery_soc_pct}"| UI_OUT
-
-    %% ── Styles ───────────────────────────────────────────────────────
-    classDef llm      fill:#7C3AED,color:#fff,stroke:#5B21B6
-    classDef agent    fill:#1D4ED8,color:#fff,stroke:#1E40AF
-    classDef infra    fill:#0F766E,color:#fff,stroke:#0D9488
-    classDef battery  fill:#B45309,color:#fff,stroke:#92400E
-    classDef external fill:#374151,color:#fff,stroke:#6B7280,stroke-dasharray:5 5
-
-    class DA,SA,BA,TA agent
-    class ORCH,ENTRY infra
-    class EP infra
-    class BS battery
-    class GROQ external
-```
-
-## Component Summary
-
-| Layer | File | Role |
-|-------|------|------|
-| **Dashboard** | `builmirai_mpc_hvac_dashboard.html` | Browser UI — sliders, metrics, agent graph panel, trace log, battery chip |
-| **API** | `api/main.py` | FastAPI — `/optimize`, `/health`, `/scenarios`; wires graph → engine |
-| **State schema** | `simulation/state.py` | `BMSState` + `AgentAction` TypedDicts shared across all nodes |
-| **LangGraph graph** | `simulation/graph.py` | Entry node + 4 LLM agents (parallel fan-out) + Orchestration (fan-in) |
-| **LLM factory** | `simulation/llm_provider.py` | `_get_llm()` — env-swappable via `LLM_PROVIDER` / `LLM_MODEL` |
-| **Battery** | `simulation/battery.py` | SOC simulation, scenario seeds, C/2 taper above 80% |
-| **EnergyPlus** | `simulation/engine.py` | pyenergyplus co-simulation, 5-zone office building |
-| **Setpoints** | `simulation/mpc.py` | `Setpoints` dataclass — interface between graph and engine |
-| **Models** | `api/models.py` | Pydantic request/response models incl. `AgentTraceEntry` |
-
-## Request lifecycle
-
-```
-Browser click
-  → POST /optimize (occupancy, ext_temp, pv_kw, tariff, scenario)
-  → FastAPI builds BMSState
-  → LangGraph: entry_node seeds battery SOC
-  → [parallel] Demand · Supply · Battery · Thermal  →  Groq LLM calls
-  → Orchestration reconciles → final_setpoints
-  → EnergyPlus engine.run() → SimResult
-  → Battery SOC updated
-  → OptimizeResponse returned
-  → Dashboard renders metrics, zones, forecast, agent trace, battery chip
+    class D,S,B,T,ORC,ENTRY agent
+    class LLM cloud
+    class EPS sim
+    class BAT bat
+    class DASH ui
+    class API api
 ```
