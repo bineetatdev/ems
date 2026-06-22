@@ -196,3 +196,89 @@ def thermal_agent(state: BMSState) -> dict:
             rationale=str(data["rationale"]),
         )
     }
+
+
+# ── Orchestration Agent (pure Python) ────────────────────────────────────────
+
+def _reconcile(state: BMSState) -> tuple[dict, list[dict]]:
+    """Arbitrate 4 agent proposals into final setpoints.
+
+    Comfort is a hard constraint. Cost/demand are soft objectives.
+    Replace only this function when the Q2 negotiation engine is ready.
+    """
+    demand = state["demand_action"]
+    supply = state["supply_action"]
+    battery = state["battery_action"]
+    thermal = state["thermal_action"]
+
+    low, high = state["comfort_band"]
+    zones_outside = sum(
+        1 for t in state["zone_temps"].values()
+        if t < low or t > high
+    )
+
+    # Thermal proposals always accepted (comfort = hard constraint)
+    ahu1 = thermal["proposed"]["ahu1_supply_c"]
+    ahu2 = thermal["proposed"]["ahu2_supply_c"]
+    chiller = thermal["proposed"]["chiller_c"]
+    free_cool = thermal["proposed"]["free_cool_pct"]
+
+    demand_limit = demand["proposed"]["demand_limit_kw"]
+    pv_divert = supply["proposed"]["pv_divert_pct"]
+
+    # Zone setpoints: comfort band midpoint ± occupancy offset
+    midpoint = (low + high) / 2.0
+    occ_offset = (state["occupancy"] - 50.0) / 100.0 * 1.0
+    zone_cooling_sp = max(low, min(high, midpoint - occ_offset))
+    zone_heating_sp = max(16.0, min(22.0, 19.0 - occ_offset))
+
+    thermal_status = "accepted"
+    trace = [
+        {"agent": "demand",  "status": "accepted", "proposed": demand["proposed"],  "score": demand["score"],  "rationale": demand["rationale"]},
+        {"agent": "supply",  "status": "accepted", "proposed": supply["proposed"],  "score": supply["score"],  "rationale": supply["rationale"]},
+        {"agent": "battery", "status": "accepted", "proposed": battery["proposed"], "score": battery["score"], "rationale": battery["rationale"]},
+        {"agent": "thermal", "status": thermal_status, "proposed": thermal["proposed"], "score": thermal["score"], "rationale": thermal["rationale"]},
+        {"agent": "orchestration", "status": "—", "proposed": {}, "score": 1.0,
+         "rationale": f"Reconciled · {5 - zones_outside}/5 zones in comfort band"},
+    ]
+
+    setpoints = {
+        "ahu1_supply_c": ahu1,
+        "ahu2_supply_c": ahu2,
+        "chiller_c": chiller,
+        "free_cool_pct": free_cool,
+        "pv_divert_pct": pv_divert,
+        "zone_cooling_sp_c": zone_cooling_sp,
+        "zone_heating_sp_c": zone_heating_sp,
+        "demand_limit_kw": demand_limit,
+    }
+    return setpoints, trace
+
+
+def orchestration_agent(state: BMSState) -> dict:
+    final_setpoints, agent_trace = _reconcile(state)
+    return {"final_setpoints": final_setpoints, "agent_trace": agent_trace}
+
+
+# ── Graph wiring ──────────────────────────────────────────────────────────────
+
+_workflow = StateGraph(BMSState)
+_workflow.add_node("entry",         entry_node)
+_workflow.add_node("demand",        demand_agent)
+_workflow.add_node("supply",        supply_agent)
+_workflow.add_node("battery",       battery_agent)
+_workflow.add_node("thermal",       thermal_agent)
+_workflow.add_node("orchestration", orchestration_agent)
+
+_workflow.add_edge(START,           "entry")
+_workflow.add_edge("entry",         "demand")
+_workflow.add_edge("entry",         "supply")
+_workflow.add_edge("entry",         "battery")
+_workflow.add_edge("entry",         "thermal")
+_workflow.add_edge("demand",        "orchestration")
+_workflow.add_edge("supply",        "orchestration")
+_workflow.add_edge("battery",       "orchestration")
+_workflow.add_edge("thermal",       "orchestration")
+_workflow.add_edge("orchestration", END)
+
+graph = _workflow.compile()
