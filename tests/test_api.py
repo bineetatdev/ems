@@ -213,3 +213,64 @@ def test_optimize_scenario_seeds_battery(client):
     assert resp.status_code == 200
     call_args = mock_graph.invoke.call_args[0][0]
     assert call_args["scenario"] == "night"
+
+
+@pytest.mark.parametrize("scenario,payload,min_comfort", [
+    ("normal",   {"occupancy": 70, "ext_temp": 24.0, "pv_kw": 14.0, "tariff": 11.0, "scenario": "normal"},   3),
+    ("peak",     {"occupancy": 90, "ext_temp": 27.0, "pv_kw": 8.0,  "tariff": 34.0, "scenario": "peak"},     3),
+    ("heatwave", {"occupancy": 75, "ext_temp": 40.0, "pv_kw": 22.0, "tariff": 18.0, "scenario": "heatwave"}, 3),
+    ("preheat",  {"occupancy": 20, "ext_temp": 19.0, "pv_kw": 5.0,  "tariff": 7.0,  "scenario": "preheat"},  3),
+    ("night",    {"occupancy": 5,  "ext_temp": 16.0, "pv_kw": 0.0,  "tariff": 5.0,  "scenario": "night"},    3),
+])
+def test_scenario_smoke(client, scenario, payload, min_comfort):
+    from unittest.mock import patch
+    from simulation.engine import SimulationResult
+
+    mock_graph_state = {
+        "final_setpoints": {
+            "ahu1_supply_c": 18.0, "ahu2_supply_c": 18.0,
+            "chiller_c": 7.0, "free_cool_pct": 30.0,
+            "pv_divert_pct": 46.7, "zone_cooling_sp_c": 24.0,
+            "zone_heating_sp_c": 19.0, "demand_limit_kw": 80.0,
+        },
+        "demand_action":  {"proposed": {"demand_limit_kw": 80.0, "dr_signal": "normal"}, "score": 0.7, "rationale": "ok"},
+        "supply_action":  {"proposed": {"pv_divert_pct": 46.7, "grid_import_limit_kw": 90.0}, "score": 0.6, "rationale": "ok"},
+        "battery_action": {"proposed": {"charge_discharge_kw": 0.0}, "score": 0.5, "rationale": "ok"},
+        "thermal_action": {"proposed": {"ahu1_supply_c": 18.0, "ahu2_supply_c": 18.0, "chiller_c": 7.0, "free_cool_pct": 30.0}, "score": 1.0, "rationale": "ok"},
+        "agent_trace": [
+            {"agent": "demand", "status": "accepted", "proposed": {}, "score": 0.7, "rationale": "ok"},
+            {"agent": "supply", "status": "accepted", "proposed": {}, "score": 0.6, "rationale": "ok"},
+            {"agent": "battery", "status": "accepted", "proposed": {}, "score": 0.5, "rationale": "ok"},
+            {"agent": "thermal", "status": "accepted", "proposed": {}, "score": 1.0, "rationale": "ok"},
+            {"agent": "orchestration", "status": "—", "proposed": {}, "score": 1.0, "rationale": "Reconciled"},
+        ],
+        "battery_soc_pct": 50.0,
+    }
+
+    mock_sim = SimulationResult(
+        power_kw=30.0, savings_pct=10, avg_zone_temp=23.5,
+        pv_contribution_pct=40, comfort_zones=min_comfort,
+        zone_temps={"Server Hall": 23.5, "Open Plan": 24.0, "Boardroom": 22.8,
+                    "Reception": 23.1, "Lab A": 24.5},
+        energy_forecast_kwh=[1.0, 1.1, 1.2, 1.1, 1.0, 0.9, 0.8],
+        setpoints={"AHU-1 supply": "18.0°C", "AHU-2 supply": "18.0°C",
+                   "Chiller setpt": "7.0°C", "Free-cool %": "30%",
+                   "PV divert": "47%", "Demand limit": "80 kW"},
+        simulation_duration_s=4.2,
+    )
+
+    with patch("api.main.graph") as mock_graph, \
+         patch("api.main.engine") as mock_engine:
+        mock_graph.invoke.return_value = mock_graph_state
+        mock_engine.run.return_value = mock_sim
+
+        resp = client.post("/optimize", json=payload)
+
+    assert resp.status_code == 200, f"{scenario}: {resp.text}"
+    data = resp.json()
+    assert data["comfort_zones"] >= min_comfort, f"{scenario}: comfort_zones={data['comfort_zones']}"
+    assert len(data["agent_trace"]) == 5, f"{scenario}: trace length {len(data['agent_trace'])}"
+    sp = data["setpoints"]
+    assert "AHU-1 supply" in sp, f"{scenario}: missing AHU-1 supply"
+    assert "Chiller setpt" in sp, f"{scenario}: missing Chiller setpt"
+    assert "Demand limit" in sp, f"{scenario}: missing Demand limit"
