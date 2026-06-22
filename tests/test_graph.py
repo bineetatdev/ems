@@ -53,3 +53,21 @@ def test_demand_agent_returns_action():
     assert action["proposed"]["dr_signal"] == "curtail"
     assert 0.0 <= action["score"] <= 1.0
     assert isinstance(action["rationale"], str)
+
+
+def test_supply_agent_returns_action():
+    from simulation.graph import supply_agent
+    state = _make_state(tariff=34.0, pv_kw=8.0, battery_soc_pct=60.0)
+    mock_llm = _mock_llm_response({
+        "pv_divert_pct": 90.0,
+        "grid_import_limit_kw": 45.0,
+        "score": 0.75,
+        "rationale": "High tariff — maximise PV self-consumption",
+    })
+    with patch("simulation.graph._get_llm", return_value=mock_llm):
+        result = supply_agent(state)
+    assert "supply_action" in result
+    action = result["supply_action"]
+    assert 0.0 <= action["proposed"]["pv_divert_pct"] <= 100.0
+    assert action["proposed"]["grid_import_limit_kw"] > 0
+    assert 0.0 <= action["score"] <= 1.0

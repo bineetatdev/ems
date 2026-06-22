@@ -67,3 +67,40 @@ def demand_agent(state: BMSState) -> dict:
             rationale=str(data["rationale"]),
         )
     }
+
+
+# ── Supply Agent ──────────────────────────────────────────────────────────────
+
+_SUPPLY_SYSTEM = """You are the Supply Agent for a Building Management System.
+Your job: recommend how to split supply between grid and solar PV to minimise import cost.
+
+Inputs: tariff (p/kWh), pv_kw (current solar generation kW), battery_soc_pct (0–100).
+
+Respond ONLY with valid JSON — no markdown:
+{
+  "pv_divert_pct": <float 0–100, fraction of PV to self-consume>,
+  "grid_import_limit_kw": <float 0–200, max grid import allowed>,
+  "score": <float 0–1, where 1 = lowest cost supply mix>,
+  "rationale": "<one concise sentence>"
+}"""
+
+
+def supply_agent(state: BMSState) -> dict:
+    llm = _get_llm()
+    human = (
+        f"tariff={state['tariff']}p/kWh, "
+        f"pv_kw={state['pv_kw']}, "
+        f"battery_soc_pct={state['battery_soc_pct']}"
+    )
+    response = llm.invoke([SystemMessage(content=_SUPPLY_SYSTEM), HumanMessage(content=human)])
+    data = json.loads(response.content)
+    return {
+        "supply_action": AgentAction(
+            proposed={
+                "pv_divert_pct": max(0.0, min(100.0, float(data["pv_divert_pct"]))),
+                "grid_import_limit_kw": float(data["grid_import_limit_kw"]),
+            },
+            score=max(0.0, min(1.0, float(data["score"]))),
+            rationale=str(data["rationale"]),
+        )
+    }
