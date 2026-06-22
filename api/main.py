@@ -98,7 +98,11 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
         "ext_temp": request.ext_temp,
         "pv_kw": request.pv_kw,
         "tariff": request.tariff,
-        "net_power_kw": max(0.0, request.pv_kw),
+        "net_power_kw": max(0.0, round(
+            20.0 + (request.occupancy / 100.0) * 30.0
+            + ((request.ext_temp - 10.0) / 32.0) * 18.0
+            - request.pv_kw, 1
+        )),
         "zone_temps": {z: 23.0 for z in ZONE_NAMES},
         "comfort_band": (22.0, 26.0),
         "battery_soc_pct": battery.soc_pct,

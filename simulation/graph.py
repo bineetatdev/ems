@@ -1,5 +1,6 @@
 import json
 import os
+import re
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
@@ -11,6 +12,22 @@ from simulation.state import AgentAction, BMSState
 
 ZONE_NAMES = ["Server Hall", "Open Plan", "Boardroom", "Reception", "Lab A"]
 
+_JSON_FENCE = re.compile(r"```(?:json)?\s*(.*?)\s*```", re.DOTALL)
+
+
+def _parse_llm_json(content: str, agent_name: str) -> dict:
+    """Parse JSON from LLM response, stripping markdown fences if present."""
+    text = content.strip()
+    m = _JSON_FENCE.search(text)
+    if m:
+        text = m.group(1)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(
+            f"{agent_name} returned non-JSON: {content[:200]!r}"
+        ) from exc
+
 
 # ── Entry node ────────────────────────────────────────────────────────────────
 
@@ -20,12 +37,9 @@ def entry_node(state: BMSState) -> dict:
         reset_battery(SCENARIO_SOC[scenario])
     soc = get_battery().soc_pct
 
-    gross_kw = state["net_power_kw"] + state["pv_kw"]
-    net_kw = max(0.0, round(gross_kw - state["pv_kw"], 1))
-
     return {
         "battery_soc_pct": soc,
-        "net_power_kw": net_kw,
+        "net_power_kw": state["net_power_kw"],
         "comfort_band": (22.0, 26.0),
         "zone_temps": state.get("zone_temps") or {z: 23.0 for z in ZONE_NAMES},
     }
@@ -56,11 +70,11 @@ def demand_agent(state: BMSState) -> dict:
         f"tariff={state['tariff']}p/kWh"
     )
     response = llm.invoke([SystemMessage(content=_DEMAND_SYSTEM), HumanMessage(content=human)])
-    data = json.loads(response.content)
+    data = _parse_llm_json(response.content, "demand_agent")
     return {
         "demand_action": AgentAction(
             proposed={
-                "demand_limit_kw": float(data["demand_limit_kw"]),
+                "demand_limit_kw": max(20.0, min(200.0, float(data["demand_limit_kw"]))),
                 "dr_signal": str(data["dr_signal"]),
             },
             score=max(0.0, min(1.0, float(data["score"]))),
@@ -93,7 +107,7 @@ def supply_agent(state: BMSState) -> dict:
         f"battery_soc_pct={state['battery_soc_pct']}"
     )
     response = llm.invoke([SystemMessage(content=_SUPPLY_SYSTEM), HumanMessage(content=human)])
-    data = json.loads(response.content)
+    data = _parse_llm_json(response.content, "supply_agent")
     return {
         "supply_action": AgentAction(
             proposed={
@@ -136,7 +150,7 @@ def battery_agent(state: BMSState) -> dict:
         f"pv_kw={state['pv_kw']}"
     )
     response = llm.invoke([SystemMessage(content=_BATTERY_SYSTEM), HumanMessage(content=human)])
-    data = json.loads(response.content)
+    data = _parse_llm_json(response.content, "battery_agent")
     kw = max(-25.0, min(25.0, float(data["charge_discharge_kw"])))
     return {
         "battery_action": AgentAction(
@@ -183,7 +197,7 @@ def thermal_agent(state: BMSState) -> dict:
         f"occupancy={state['occupancy']}%"
     )
     response = llm.invoke([SystemMessage(content=_THERMAL_SYSTEM), HumanMessage(content=human)])
-    data = json.loads(response.content)
+    data = _parse_llm_json(response.content, "thermal_agent")
     return {
         "thermal_action": AgentAction(
             proposed={
@@ -201,9 +215,9 @@ def thermal_agent(state: BMSState) -> dict:
 # ── Orchestration Agent (pure Python) ────────────────────────────────────────
 
 def _reconcile(state: BMSState) -> tuple[dict, list[dict]]:
-    """Arbitrate 4 agent proposals into final setpoints.
+    """Pass all 4 agent proposals through into final setpoints.
 
-    Comfort is a hard constraint. Cost/demand are soft objectives.
+    All proposals accepted unconditionally — conflict arbitration not yet implemented.
     Replace only this function when the Q2 negotiation engine is ready.
     """
     demand = state["demand_action"]
