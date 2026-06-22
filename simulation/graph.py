@@ -1,6 +1,10 @@
 import json
+import logging
 import os
 import re
+import time
+
+log = logging.getLogger("builmirai.graph")
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.graph import END, START, StateGraph
@@ -69,7 +73,10 @@ def demand_agent(state: BMSState) -> dict:
         f"occupancy={state['occupancy']}%, "
         f"tariff={state['tariff']}p/kWh"
     )
+    log.debug("demand_agent: calling LLM")
+    t = time.perf_counter()
     response = llm.invoke([SystemMessage(content=_DEMAND_SYSTEM), HumanMessage(content=human)])
+    log.debug("demand_agent: LLM done in %.2fs  raw=%r", time.perf_counter() - t, response.content[:120])
     data = _parse_llm_json(response.content, "demand_agent")
     return {
         "demand_action": AgentAction(
@@ -106,7 +113,10 @@ def supply_agent(state: BMSState) -> dict:
         f"pv_kw={state['pv_kw']}, "
         f"battery_soc_pct={state['battery_soc_pct']}"
     )
+    log.debug("supply_agent: calling LLM")
+    t = time.perf_counter()
     response = llm.invoke([SystemMessage(content=_SUPPLY_SYSTEM), HumanMessage(content=human)])
+    log.debug("supply_agent: LLM done in %.2fs  raw=%r", time.perf_counter() - t, response.content[:120])
     data = _parse_llm_json(response.content, "supply_agent")
     return {
         "supply_action": AgentAction(
@@ -149,7 +159,10 @@ def battery_agent(state: BMSState) -> dict:
         f"tariff={state['tariff']}p/kWh, "
         f"pv_kw={state['pv_kw']}"
     )
+    log.debug("battery_agent: calling LLM")
+    t = time.perf_counter()
     response = llm.invoke([SystemMessage(content=_BATTERY_SYSTEM), HumanMessage(content=human)])
+    log.debug("battery_agent: LLM done in %.2fs  raw=%r", time.perf_counter() - t, response.content[:120])
     data = _parse_llm_json(response.content, "battery_agent")
     kw = max(-25.0, min(25.0, float(data["charge_discharge_kw"])))
     return {
@@ -196,7 +209,10 @@ def thermal_agent(state: BMSState) -> dict:
         f"ext_temp={state['ext_temp']}°C, "
         f"occupancy={state['occupancy']}%"
     )
+    log.debug("thermal_agent: calling LLM")
+    t = time.perf_counter()
     response = llm.invoke([SystemMessage(content=_THERMAL_SYSTEM), HumanMessage(content=human)])
+    log.debug("thermal_agent: LLM done in %.2fs  raw=%r", time.perf_counter() - t, response.content[:120])
     data = _parse_llm_json(response.content, "thermal_agent")
     return {
         "thermal_action": AgentAction(

@@ -1,11 +1,16 @@
 import asyncio
+import logging
 import os
+import time
 from contextlib import asynccontextmanager
+from pathlib import Path
+from concurrent.futures import ThreadPoolExecutor
 
 from dotenv import load_dotenv
 load_dotenv()
-from pathlib import Path
-from concurrent.futures import ThreadPoolExecutor
+
+logging.basicConfig(level=logging.DEBUG, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+log = logging.getLogger("builmirai.api")
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -119,10 +124,15 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
     }
 
     loop = asyncio.get_running_loop()
+    log.info("▶ graph.invoke starting  occ=%.0f ext=%.1f pv=%.1f tariff=%.1f",
+             request.occupancy, request.ext_temp, request.pv_kw, request.tariff)
+    t0 = time.perf_counter()
     try:
         result_state = await loop.run_in_executor(_executor, lambda: graph.invoke(initial_state))
     except Exception as exc:
+        log.exception("graph.invoke FAILED after %.2fs", time.perf_counter() - t0)
         raise HTTPException(status_code=500, detail=f"Agent graph failed: {exc}") from exc
+    log.info("✔ graph.invoke done in %.2fs", time.perf_counter() - t0)
 
     sp_dict = result_state["final_setpoints"]
     final_setpoints = Setpoints(
@@ -136,6 +146,8 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
         demand_limit_kw=sp_dict["demand_limit_kw"],
     )
 
+    log.info("▶ engine.run starting")
+    t1 = time.perf_counter()
     try:
         async with _engine_lock:
             sim_result = await loop.run_in_executor(
@@ -143,7 +155,9 @@ async def optimize(request: OptimizeRequest) -> OptimizeResponse:
                 lambda: engine.run(request=request, setpoints=final_setpoints),
             )
     except RuntimeError as exc:
+        log.exception("engine.run FAILED after %.2fs", time.perf_counter() - t1)
         raise HTTPException(status_code=500, detail=f"Simulation failed: {exc}") from exc
+    log.info("✔ engine.run done in %.2fs", time.perf_counter() - t1)
 
     bat_action = result_state.get("battery_action") or {}
     charge_kw = (bat_action.get("proposed") or {}).get("charge_discharge_kw", 0.0)

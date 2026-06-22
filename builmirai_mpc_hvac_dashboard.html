@@ -910,18 +910,31 @@ async function runOptimise() {
     const b = document.getElementById('badge-'+a);
     if (b) { b.textContent = 'running'; b.className = 'agent-badge badge-running'; }
   });
+  const _t0 = performance.now();
+  console.debug('[BMS] fetch /optimize start', {occ: state.occ, ext: state.ext, pv: state.pv, tariff: state.tariff});
   try {
     const res = await fetch('/optimize', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ occupancy: state.occ, ext_temp: state.ext, pv_kw: state.pv, tariff: state.tariff })
     });
-    if (!res.ok) throw new Error(`API error: ${res.status}`);
-    renderFromApi(await res.json());
+    console.debug('[BMS] fetch /optimize response', res.status, `${((performance.now()-_t0)/1000).toFixed(2)}s`);
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`API error ${res.status}: ${body}`);
+    }
+    const data = await res.json();
+    console.debug('[BMS] response parsed, agent_trace length=', data.agent_trace?.length, data);
+    try {
+      renderFromApi(data);
+    } catch (renderErr) {
+      console.error('[BMS] renderFromApi threw:', renderErr);
+      throw renderErr;
+    }
     document.getElementById('sys-status').textContent = 'MPC active';
     document.getElementById('sys-status').className   = 'badge badge-ok';
   } catch (err) {
-    console.error('Optimisation failed:', err);
+    console.error('[BMS] Optimisation failed:', err);
     document.getElementById('sys-status').textContent = 'MPC error';
     document.getElementById('sys-status').className   = 'badge badge-warn';
   } finally {
