@@ -100,3 +100,32 @@ def test_battery_agent_discharge_is_negative():
     with patch("simulation.graph._get_llm", return_value=mock_llm):
         result = battery_agent(state)
     assert result["battery_action"]["proposed"]["charge_discharge_kw"] < 0
+
+
+def test_thermal_agent_returns_action():
+    from simulation.graph import thermal_agent
+    state = _make_state(
+        zone_temps={"Server Hall": 27.5, "Open Plan": 24.0, "Boardroom": 23.0,
+                    "Reception": 22.5, "Lab A": 26.8},
+        comfort_band=(22.0, 26.0),
+        ext_temp=32.0,
+        occupancy=75.0,
+    )
+    mock_llm = _mock_llm_response({
+        "ahu1_supply_c": 17.0,
+        "ahu2_supply_c": 17.5,
+        "chiller_c": 6.5,
+        "free_cool_pct": 20.0,
+        "score": 0.6,
+        "rationale": "2 zones above comfort band — increase cooling",
+    })
+    with patch("simulation.graph._get_llm", return_value=mock_llm):
+        result = thermal_agent(state)
+    assert "thermal_action" in result
+    action = result["thermal_action"]
+    p = action["proposed"]
+    assert 12.0 <= p["ahu1_supply_c"] <= 24.0
+    assert 12.0 <= p["ahu2_supply_c"] <= 24.0
+    assert 4.0 <= p["chiller_c"] <= 12.0
+    assert 0.0 <= p["free_cool_pct"] <= 100.0
+    assert 0.0 <= action["score"] <= 1.0

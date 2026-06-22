@@ -145,3 +145,54 @@ def battery_agent(state: BMSState) -> dict:
             rationale=str(data["rationale"]),
         )
     }
+
+
+# ── Thermal Agent ─────────────────────────────────────────────────────────────
+
+_THERMAL_SYSTEM = """You are the Thermal Agent for a Building Management System.
+Your job: recommend HVAC setpoints to keep all zones within the comfort band.
+
+Rules:
+- ahu1_supply_c and ahu2_supply_c: valid range 12–24 °C (lower = more cooling).
+- chiller_c: valid range 4–12 °C (lower = more cooling, more energy).
+- free_cool_pct: 0–100 % (higher = more free-side economiser cooling, less chiller energy).
+- Comfort band is 22–26 °C. Zones outside the band lower your score.
+- Score = zones_in_band / total_zones.
+
+Inputs: zone_temps (dict of zone→°C), comfort_band (low, high), ext_temp (°C), occupancy (%).
+
+Respond ONLY with valid JSON — no markdown:
+{
+  "ahu1_supply_c": <float 12–24>,
+  "ahu2_supply_c": <float 12–24>,
+  "chiller_c": <float 4–12>,
+  "free_cool_pct": <float 0–100>,
+  "score": <float 0–1>,
+  "rationale": "<one concise sentence>"
+}"""
+
+
+def thermal_agent(state: BMSState) -> dict:
+    llm = _get_llm()
+    low, high = state["comfort_band"]
+    zone_str = ", ".join(f"{z}={t}°C" for z, t in state["zone_temps"].items())
+    human = (
+        f"zone_temps=[{zone_str}], "
+        f"comfort_band=({low},{high})°C, "
+        f"ext_temp={state['ext_temp']}°C, "
+        f"occupancy={state['occupancy']}%"
+    )
+    response = llm.invoke([SystemMessage(content=_THERMAL_SYSTEM), HumanMessage(content=human)])
+    data = json.loads(response.content)
+    return {
+        "thermal_action": AgentAction(
+            proposed={
+                "ahu1_supply_c": max(12.0, min(24.0, float(data["ahu1_supply_c"]))),
+                "ahu2_supply_c": max(12.0, min(24.0, float(data["ahu2_supply_c"]))),
+                "chiller_c": max(4.0, min(12.0, float(data["chiller_c"]))),
+                "free_cool_pct": max(0.0, min(100.0, float(data["free_cool_pct"]))),
+            },
+            score=max(0.0, min(1.0, float(data["score"]))),
+            rationale=str(data["rationale"]),
+        )
+    }
