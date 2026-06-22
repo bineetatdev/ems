@@ -71,3 +71,32 @@ def test_supply_agent_returns_action():
     assert 0.0 <= action["proposed"]["pv_divert_pct"] <= 100.0
     assert action["proposed"]["grid_import_limit_kw"] > 0
     assert 0.0 <= action["score"] <= 1.0
+
+
+def test_battery_agent_returns_action():
+    from simulation.graph import battery_agent
+    state = _make_state(battery_soc_pct=30.0, tariff=18.0, pv_kw=22.0)
+    mock_llm = _mock_llm_response({
+        "charge_discharge_kw": 20.0,
+        "score": 0.9,
+        "rationale": "Low SOC and high PV — charge at 20 kW",
+    })
+    with patch("simulation.graph._get_llm", return_value=mock_llm):
+        result = battery_agent(state)
+    assert "battery_action" in result
+    action = result["battery_action"]
+    assert "charge_discharge_kw" in action["proposed"]
+    assert 0.0 <= action["score"] <= 1.0
+
+
+def test_battery_agent_discharge_is_negative():
+    from simulation.graph import battery_agent
+    state = _make_state(battery_soc_pct=60.0, tariff=34.0, pv_kw=5.0)
+    mock_llm = _mock_llm_response({
+        "charge_discharge_kw": -15.0,
+        "score": 0.8,
+        "rationale": "Peak tariff — discharge 15 kW to offset grid draw",
+    })
+    with patch("simulation.graph._get_llm", return_value=mock_llm):
+        result = battery_agent(state)
+    assert result["battery_action"]["proposed"]["charge_discharge_kw"] < 0

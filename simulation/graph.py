@@ -104,3 +104,44 @@ def supply_agent(state: BMSState) -> dict:
             rationale=str(data["rationale"]),
         )
     }
+
+
+# ── Battery Agent ─────────────────────────────────────────────────────────────
+
+_BATTERY_SYSTEM = """You are the Battery Agent for a Building Management System.
+Your job: recommend charge or discharge power to optimise SOC health and tariff arbitrage.
+
+Rules:
+- Positive charge_discharge_kw = charging, negative = discharging.
+- Max rate is ±25 kW. Charge rate tapers to 12.5 kW above 80% SOC.
+- Avoid discharging below 10% SOC. Avoid charging above 95% SOC.
+- Prefer charging when tariff < 15 p/kWh and pv_kw > 10.
+- Prefer discharging when tariff > 25 p/kWh and soc > 40%.
+
+Inputs: battery_soc_pct (0–100), tariff (p/kWh), pv_kw.
+
+Respond ONLY with valid JSON — no markdown:
+{
+  "charge_discharge_kw": <float -25 to +25>,
+  "score": <float 0–1, where 1 = optimal arbitrage and SOC health>,
+  "rationale": "<one concise sentence>"
+}"""
+
+
+def battery_agent(state: BMSState) -> dict:
+    llm = _get_llm()
+    human = (
+        f"battery_soc_pct={state['battery_soc_pct']}, "
+        f"tariff={state['tariff']}p/kWh, "
+        f"pv_kw={state['pv_kw']}"
+    )
+    response = llm.invoke([SystemMessage(content=_BATTERY_SYSTEM), HumanMessage(content=human)])
+    data = json.loads(response.content)
+    kw = max(-25.0, min(25.0, float(data["charge_discharge_kw"])))
+    return {
+        "battery_action": AgentAction(
+            proposed={"charge_discharge_kw": kw},
+            score=max(0.0, min(1.0, float(data["score"]))),
+            rationale=str(data["rationale"]),
+        )
+    }
