@@ -70,3 +70,46 @@ def test_health_response():
 def test_scenario_response():
     s = ScenarioResponse(name="peak", occupancy=90, ext_temp=27.0, pv_kw=8.0, tariff=34.0)
     assert s.name == "peak"
+
+
+from api.models import AgentTraceEntry, OptimizeResponse, OptimizeRequest
+
+
+def test_agent_trace_entry_model():
+    entry = AgentTraceEntry(
+        agent="demand",
+        status="accepted",
+        proposed={"demand_limit_kw": 75.0},
+        score=0.8,
+        rationale="Peak avoidance",
+    )
+    assert entry.agent == "demand"
+    assert entry.score == 0.8
+
+
+def test_optimize_request_accepts_scenario():
+    req = OptimizeRequest(occupancy=70, ext_temp=24.0, pv_kw=14.0, tariff=11.0, scenario="normal")
+    assert req.scenario == "normal"
+
+
+def test_optimize_request_scenario_defaults_none():
+    req = OptimizeRequest(occupancy=70, ext_temp=24.0, pv_kw=14.0, tariff=11.0)
+    assert req.scenario is None
+
+
+def test_optimize_response_includes_agent_trace():
+    resp = OptimizeResponse(
+        power_kw=30.0, savings_pct=10, avg_zone_temp=23.5,
+        pv_contribution_pct=40, comfort_zones=4,
+        zone_temps={"Server Hall": 23.5},
+        energy_forecast_kwh=[1.0, 1.1, 1.2, 1.1, 1.0, 0.9, 0.8],
+        setpoints={"AHU-1 supply": "18.0°C"},
+        simulation_duration_s=4.2,
+        battery_soc_pct=55.0,
+        agent_trace=[
+            AgentTraceEntry(agent="demand", status="accepted",
+                            proposed={}, score=0.7, rationale="ok")
+        ],
+    )
+    assert resp.battery_soc_pct == 55.0
+    assert len(resp.agent_trace) == 1

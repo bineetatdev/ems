@@ -7,6 +7,15 @@ class OptimizeRequest(BaseModel):
     pv_kw: float = Field(..., ge=0, le=30)
     tariff: float = Field(..., ge=5, le=40)
     horizon_hours: int = Field(default=4, ge=1, le=8)
+    scenario: str | None = None
+
+
+class AgentTraceEntry(BaseModel):
+    agent: str
+    status: str
+    proposed: dict
+    score: float
+    rationale: str
 
 
 class OptimizeResponse(BaseModel):
@@ -19,6 +28,8 @@ class OptimizeResponse(BaseModel):
     energy_forecast_kwh: list[float]
     setpoints: dict[str, str]
     simulation_duration_s: float
+    battery_soc_pct: float = 50.0
+    agent_trace: list[AgentTraceEntry] = []
 
 
 class HealthResponse(BaseModel):
