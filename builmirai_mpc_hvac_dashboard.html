@@ -909,7 +909,8 @@ async function runOptimise() {
   const btn = document.getElementById('run-btn');
   btn.classList.add('running');
   btn.textContent = '⏳ Running EnergyPlus…';
-  document.getElementById('mpc-status').textContent = 'solving…';
+  document.getElementById('sys-status').textContent = 'solving…';
+  document.getElementById('sys-status').className   = 'badge badge-warn';
   ['demand','supply','battery','thermal','orchestration','entry'].forEach(a => {
     const b = document.getElementById('badge-'+a);
     if (b) { b.textContent = 'running'; b.className = 'agent-badge badge-running'; }
@@ -944,7 +945,8 @@ async function runOptimise() {
   } finally {
     btn.classList.remove('running');
     btn.textContent = '▶ Run EnergyPlus optimiser';
-    document.getElementById('mpc-status').textContent = 'running';
+    document.getElementById('sys-status').textContent = 'MPC active';
+    document.getElementById('sys-status').className   = 'badge badge-ok';
   }
 }
 
