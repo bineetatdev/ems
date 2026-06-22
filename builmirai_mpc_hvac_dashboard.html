@@ -325,6 +325,26 @@
     .layer-bms { background: rgba(16,185,129,0.08);  border-color: rgba(16,185,129,0.25);  color: #34D399; }
     .layer-pid { background: rgba(245,158,11,0.08);  border-color: rgba(245,158,11,0.25);  color: #FCD34D; }
     .layer-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; flex-shrink: 0; animation: pulse 2s ease-in-out infinite; }
+
+    /* ── AGENT GRAPH ── */
+    .agent-graph { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+    .agent-row   { display: flex; gap: 10px; justify-content: center; }
+    .agent-node  {
+      background: var(--bg-card2); border: 1px solid var(--border);
+      border-radius: var(--radius-md); padding: 10px 14px; min-width: 110px;
+      display: flex; flex-direction: column; align-items: center; gap: 4px;
+    }
+    .agent-node-name  { font-size: 12px; font-weight: 600; color: var(--text-1); }
+    .agent-node-sub   { font-size: 10px; color: var(--text-3); text-align: center; }
+    .agent-rationale  { font-size: 10px; color: var(--text-2); text-align: center; max-width: 100px; line-height: 1.3; }
+    .agent-badge { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+    .badge-idle      { background: var(--bg-input); color: var(--text-3); }
+    .badge-running   { background: var(--blue-lo); color: var(--blue); }
+    .badge-accepted  { background: var(--green-lo); color: var(--green); }
+    .badge-overridden{ background: var(--amber-lo); color: var(--amber); }
+    .agent-connector { color: var(--text-3); font-size: 18px; line-height: 1; }
+    .agent-fan { display: flex; gap: 4px; align-items: center; color: var(--text-3); font-size: 11px; }
+
     .layer-name { font-size: 12px; font-weight: 600; flex: 1; }
     .layer-freq { font-size: 10px; opacity: 0.6; }
     .layer-status { font-size: 10px; font-weight: 600; opacity: 0.9; }
@@ -402,6 +422,7 @@
 
   <!-- ── STATUS BAR ── -->
   <div class="status-bar">
+    <div class="status-chip" id="bat-chip" style="background:var(--green-lo);color:var(--green)">BAT · 50%</div>
     <span class="badge badge-ok"  id="sys-status">MPC active</span>
     <span class="badge badge-ok"  id="comfort-status">Comfort: all zones</span>
     <span class="badge badge-info" id="tariff-badge">Tariff: off-peak</span>
@@ -462,7 +483,7 @@
           <div class="card-title">Zone temperatures</div>
           <div class="card-desc">Real EnergyPlus thermal simulation · 5-zone office model</div>
         </div>
-        <span class="card-chip">CFD-trained</span>
+        <!-- <span class="card-chip">CFD-trained</span>-->
       </div>
       <div class="zone-grid" id="zone-grid"></div>
       <div class="comfort-section">
@@ -556,35 +577,53 @@
       <div class="card-header">
         <div>
           <div class="card-title">Control architecture</div>
-          <div class="card-desc">Three-layer HVAC control hierarchy</div>
+          <div class="card-desc">5-agent LangGraph pipeline</div>
         </div>
       </div>
-      <div class="layer-stack">
-        <div class="layer layer-mpc">
-          <div class="layer-dot"></div>
-          <div style="flex:1">
-            <div class="layer-name">MPC optimiser</div>
-            <div class="layer-freq">EnergyPlus physics · 4 h horizon · 15 min re-solve</div>
-          </div>
-          <span class="layer-status" id="mpc-status">running</span>
+      <div class="agent-graph" id="agent-graph">
+        <!-- Entry node -->
+        <div class="agent-node" style="border-color:var(--border-hi)">
+          <div class="agent-node-name">⚡ Entry</div>
+          <div class="agent-node-sub">seeds BMSState</div>
+          <span class="agent-badge badge-idle" id="badge-entry">idle</span>
         </div>
-        <div class="layer-connector">↓</div>
-        <div class="layer layer-bms">
-          <div class="layer-dot"></div>
-          <div style="flex:1">
-            <div class="layer-name">BuilMirai BMS</div>
-            <div class="layer-freq">supervisory setpoint dispatch · 1 min</div>
-          </div>
-          <span class="layer-status">active</span>
+        <!-- Fan-out arrow -->
+        <div class="agent-fan">
+          <span>↙</span><span>↓</span><span>↓</span><span>↓</span><span>↘</span>
         </div>
-        <div class="layer-connector">↓</div>
-        <div class="layer layer-pid">
-          <div class="layer-dot"></div>
-          <div style="flex:1">
-            <div class="layer-name">PID inner loop</div>
-            <div class="layer-freq">per-AHU valve control · 1 s</div>
+        <!-- 4 specialist nodes -->
+        <div class="agent-row">
+          <div class="agent-node">
+            <div class="agent-node-name">📊 Demand</div>
+            <span class="agent-badge badge-idle" id="badge-demand">idle</span>
+            <div class="agent-rationale" id="rationale-demand">—</div>
           </div>
-          <span class="layer-status">closed</span>
+          <div class="agent-node">
+            <div class="agent-node-name">⚡ Supply</div>
+            <span class="agent-badge badge-idle" id="badge-supply">idle</span>
+            <div class="agent-rationale" id="rationale-supply">—</div>
+          </div>
+          <div class="agent-node">
+            <div class="agent-node-name">🔋 Battery</div>
+            <span class="agent-badge badge-idle" id="badge-battery">idle</span>
+            <div class="agent-rationale" id="rationale-battery">—</div>
+          </div>
+          <div class="agent-node">
+            <div class="agent-node-name">🌡️ Thermal</div>
+            <span class="agent-badge badge-idle" id="badge-thermal">idle</span>
+            <div class="agent-rationale" id="rationale-thermal">—</div>
+          </div>
+        </div>
+        <!-- Fan-in arrow -->
+        <div class="agent-fan">
+          <span>↘</span><span>↓</span><span>↓</span><span>↓</span><span>↙</span>
+        </div>
+        <!-- Orchestration node -->
+        <div class="agent-node" style="border-color:var(--border-hi)">
+          <div class="agent-node-name">🎯 Orchestration</div>
+          <div class="agent-node-sub">arbitrates setpoints</div>
+          <span class="agent-badge badge-idle" id="badge-orchestration">idle</span>
+          <div class="agent-rationale" id="rationale-orchestration">—</div>
         </div>
       </div>
     </div>
@@ -681,12 +720,12 @@ function renderForecast(vals) {
   const el = document.getElementById('fc-row');
   const colors = [
     'linear-gradient(180deg,#3B82F6,#1D4ED8)',
-    'linear-gradient(180deg,#60A5FA,#3B82F6)',
-    'linear-gradient(180deg,#818CF8,#6366F1)',
-    'linear-gradient(180deg,#34D399,#10B981)',
-    'linear-gradient(180deg,#10B981,#059669)',
-    'linear-gradient(180deg,#059669,#047857)',
-    'linear-gradient(180deg,#047857,#065F46)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
+    'linear-gradient(180deg,#3B82F6,#1D4ED8)',
   ];
   el.innerHTML = vals.map((v,i) => {
     const h = max > 0 ? Math.round((v/max)*68)+6 : 6;
@@ -705,25 +744,61 @@ function renderSetpoints(sps) {
   ).join('');
 }
 
-const logTypes = ['log-ok','log-ok','log-info','log-ok','log-warn','log-info','log-ok'];
-const logTexts = [
-  (s) => `MPC horizon optimised · cost £${(s.power*s.tariff/100).toFixed(2)}/hr`,
-  (s) => `Zone comfort: ${s.comfort}/5 in band`,
-  (s) => `Chiller staging adjusted · ext ${s.ext}°C`,
-  (s) => `PV ${s.pvKw} kW absorbed · demand offset`,
-  (s) => s.ext>35 ? 'Hotspot risk: Server Hall +2.1K above setpoint' : 'Thermal gradient nominal',
-  (s) => `Tariff signal: next change T+${12+Math.floor(Math.random()*20)}min`,
-  (s) => `BMS supervisory heartbeat · PID loops closed`,
-];
 const logMessages = [];
-let logIdx = 0;
+
+function renderAgentTrace(trace) {
+  if (!trace || !trace.length) return;
+  const t = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const typeMap = { accepted: 'log-ok', overridden: 'log-warn', '—': 'log-info' };
+  const newEntries = trace.map(e => ({
+    t,
+    type: typeMap[e.status] || 'log-info',
+    text: `[${e.agent.charAt(0).toUpperCase()+e.agent.slice(1)}] ${e.rationale} [${e.status}]`,
+  }));
+  logMessages.unshift(...newEntries);
+  if (logMessages.length > 10) logMessages.splice(10);
+  document.getElementById('sys-log').innerHTML = logMessages.map(m =>
+    `<div class="log-line"><span class="log-time">${m.t}</span><span class="${m.type}">${m.text}</span></div>`
+  ).join('');
+}
+
+function renderAgentGraph(trace) {
+  const agents = ['demand','supply','battery','thermal','orchestration'];
+  agents.forEach(a => {
+    const badge = document.getElementById('badge-'+a);
+    const rat   = document.getElementById('rationale-'+a);
+    if (badge) { badge.textContent = 'idle'; badge.className = 'agent-badge badge-idle'; }
+    if (rat)   rat.textContent = '—';
+  });
+  if (!trace) return;
+  trace.forEach(e => {
+    const badge = document.getElementById('badge-'+e.agent);
+    const rat   = document.getElementById('rationale-'+e.agent);
+    if (!badge) return;
+    const cls = e.status === 'accepted' ? 'badge-accepted'
+              : e.status === 'overridden' ? 'badge-overridden'
+              : 'badge-idle';
+    badge.textContent = e.status;
+    badge.className = 'agent-badge ' + cls;
+    if (rat) rat.textContent = e.rationale || '—';
+  });
+  const entryBadge = document.getElementById('badge-entry');
+  if (entryBadge) { entryBadge.textContent = 'done'; entryBadge.className = 'agent-badge badge-accepted'; }
+}
+
+function updateBatterySoc(pct) {
+  const chip = document.getElementById('bat-chip');
+  if (!chip) return;
+  chip.textContent = `BAT · ${Math.round(pct)}%`;
+  chip.style.background = pct > 50 ? 'var(--green-lo)' : pct > 20 ? 'var(--amber-lo)' : 'var(--red-lo)';
+  chip.style.color       = pct > 50 ? 'var(--green)'    : pct > 20 ? 'var(--amber)'    : 'var(--red)';
+}
 
 function addLog(s) {
+  // Offline fallback — only used when EnergyPlus backend isn't running
   const t = new Date().toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  const li = logIdx % logTexts.length;
-  logMessages.unshift({ t, type: logTypes[li], text: logTexts[li](s) });
-  if(logMessages.length > 5) logMessages.pop();
-  logIdx++;
+  logMessages.unshift({ t, type: 'log-info', text: `[Offline] Heuristic compute · ext ${s.ext}°C · occ ${s.occ}%` });
+  if (logMessages.length > 5) logMessages.pop();
   document.getElementById('sys-log').innerHTML = logMessages.map(m =>
     `<div class="log-line"><span class="log-time">${m.t}</span><span class="${m.type}">${m.text}</span></div>`
   ).join('');
@@ -744,6 +819,7 @@ function render(s) {
   renderZones(r.zoneTemps);
   renderForecast(r.fcVals);
   renderSetpoints(r.setpoints);
+  updateBatterySoc(50);
   const cpct = Math.round(r.comfort/5*100);
   document.getElementById('comfort-fill').style.width = cpct+'%';
   document.getElementById('comfort-fill').className = 'comfort-fill '+(cpct===100?'comfort-ok':'comfort-warn');
@@ -771,6 +847,9 @@ function renderFromApi(data) {
   renderZones(zoneOrder.map(z => data.zone_temps[z] || 23.0));
   renderForecast(data.energy_forecast_kwh);
   renderSetpoints(data.setpoints);
+  renderAgentTrace(data.agent_trace);
+  renderAgentGraph(data.agent_trace);
+  updateBatterySoc(data.battery_soc_pct ?? 50);
 
   const cpct = Math.round(data.comfort_zones / 5 * 100);
   document.getElementById('comfort-fill').style.width = cpct + '%';
@@ -778,8 +857,6 @@ function renderFromApi(data) {
   document.getElementById('comfort-pct').textContent = cpct + '% zones in comfort band';
   document.getElementById('comfort-status').textContent = cpct === 100 ? 'Comfort: all zones' : 'Comfort: ' + data.comfort_zones + '/5 zones';
   document.getElementById('comfort-status').className = 'badge ' + (cpct === 100 ? 'badge-ok' : 'badge-warn');
-
-  addLog({...state, power: data.power_kw, comfort: data.comfort_zones, ext: state.ext, pvKw: state.pv, tariff: state.tariff});
 }
 
 async function setScenario(key) {
@@ -829,6 +906,10 @@ async function runOptimise() {
   btn.classList.add('running');
   btn.textContent = '⏳ Running EnergyPlus…';
   document.getElementById('mpc-status').textContent = 'solving…';
+  ['demand','supply','battery','thermal','orchestration','entry'].forEach(a => {
+    const b = document.getElementById('badge-'+a);
+    if (b) { b.textContent = 'running'; b.className = 'agent-badge badge-running'; }
+  });
   try {
     const res = await fetch('/optimize', {
       method: 'POST',
