@@ -1,6 +1,9 @@
 import asyncio
 import os
 from contextlib import asynccontextmanager
+
+from dotenv import load_dotenv
+load_dotenv()
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
 
