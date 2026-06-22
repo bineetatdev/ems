@@ -902,6 +902,10 @@ function onSlider() {
 }
 
 async function runOptimise() {
+  if (window.location.protocol === 'file:') {
+    alert('Open this dashboard through the FastAPI server:\n\nuvicorn api.main:app --reload\n\nThen visit http://localhost:8000');
+    return;
+  }
   const btn = document.getElementById('run-btn');
   btn.classList.add('running');
   btn.textContent = '⏳ Running EnergyPlus…';
