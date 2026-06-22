@@ -212,6 +212,7 @@ def _reconcile(state: BMSState) -> tuple[dict, list[dict]]:
     thermal = state["thermal_action"]
 
     low, high = state["comfort_band"]
+    total_zones = len(state["zone_temps"])
     zones_outside = sum(
         1 for t in state["zone_temps"].values()
         if t < low or t > high
@@ -232,14 +233,13 @@ def _reconcile(state: BMSState) -> tuple[dict, list[dict]]:
     zone_cooling_sp = max(low, min(high, midpoint - occ_offset))
     zone_heating_sp = max(16.0, min(22.0, 19.0 - occ_offset))
 
-    thermal_status = "accepted"
     trace = [
         {"agent": "demand",  "status": "accepted", "proposed": demand["proposed"],  "score": demand["score"],  "rationale": demand["rationale"]},
         {"agent": "supply",  "status": "accepted", "proposed": supply["proposed"],  "score": supply["score"],  "rationale": supply["rationale"]},
         {"agent": "battery", "status": "accepted", "proposed": battery["proposed"], "score": battery["score"], "rationale": battery["rationale"]},
-        {"agent": "thermal", "status": thermal_status, "proposed": thermal["proposed"], "score": thermal["score"], "rationale": thermal["rationale"]},
+        {"agent": "thermal", "status": "accepted", "proposed": thermal["proposed"], "score": thermal["score"], "rationale": thermal["rationale"]},
         {"agent": "orchestration", "status": "—", "proposed": {}, "score": 1.0,
-         "rationale": f"Reconciled · {5 - zones_outside}/5 zones in comfort band"},
+         "rationale": f"Reconciled · {total_zones - zones_outside}/{total_zones} zones in comfort band"},
     ]
 
     setpoints = {
